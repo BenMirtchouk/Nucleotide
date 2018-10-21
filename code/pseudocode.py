@@ -1,5 +1,5 @@
 def pairwise_seq_seq(s1, s2):
-	# Needleman-Wulsh
+	# Needleman-Wulsch
 
 def pairwise_seq_graph(s1, s2):
 	# sequence to graph alignment as in POA
