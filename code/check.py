@@ -51,9 +51,9 @@ for name in files:
             idx = 0
             sp = 0
             
-            # for sp in range(len(snv)):
-            #     if snv[sp] - offset - 1 >= 0:
-            #         break
+            for sp in range(len(snv)):
+                if snv[sp] - offset - 1 >= 0:
+                    break
             
             for i in range(len(seq)):
                 if seq[i] == '-': 
