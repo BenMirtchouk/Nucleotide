@@ -1,7 +1,7 @@
 from subprocess import *
 
 rng = (834, 895)
-f = open('data/61_to_78__' + str(rng[0]) + '_to_' + str(rng[1]) + '.txt', 'r')
+f = open('../data/61_to_78__' + str(rng[0]) + '_to_' + str(rng[1]) + '.txt', 'r')
 
 def get_read():
     try:
@@ -32,7 +32,7 @@ for score in [(0,1,-1), (-1,1,-1), (-1,1,-2)]: # mismatch, match, indel
         print 'working on pairwise', score, mb
         inf = 10**6
 
-        o = open('alignments/61_to_78__' + str(rng[0]) + '_to_' + str(rng[1]) + 
+        o = open('../alignments/61_to_78__' + str(rng[0]) + '_to_' + str(rng[1]) + 
                  '_pairwise_' + str(score[0]) + '_' + str(score[1]) + '_' + 
                  str(score[2]) + '_' + str(mb) + '.txt', 'w')
 
@@ -103,8 +103,8 @@ for score in [(0,1,-1), (-1,1,-1), (-1,1,-2)]: # mismatch, match, indel
     for t in [0, 1]:
         print 'working on poa', score, t
 
-        cmd = ['python', '../poapy-master/poa.py', 
-                         'data/61_to_78__' + str(rng[0]) + '_to_' + str(rng[1]) + '.txt', 
+        cmd = ['python', '../../poapy-master/poa.py', 
+                         '../data/61_to_78__' + str(rng[0]) + '_to_' + str(rng[1]) + '.txt', 
                          '-M ' + str(score[0]),
                          '-m ' + str(score[1]),
                          '-G ' + str(score[2])]
@@ -114,11 +114,10 @@ for score in [(0,1,-1), (-1,1,-1), (-1,1,-2)]: # mismatch, match, indel
         process = Popen(cmd, stdout=PIPE)
         (output, err) = process.communicate()
         
-        o = open('alignments/61_to_78__' + str(rng[0]) + '_to_' + str(rng[1]) + 
+        o = open('../alignments/61_to_78__' + str(rng[0]) + '_to_' + str(rng[1]) + 
                  '_poa_' + str(score[0]) + '_' + str(score[1]) + '_' + 
                  str(score[2]) + ('_global' if t else '_local') +'.txt', 'w')
-
-        print output
+        
         o.write(output)
 
     

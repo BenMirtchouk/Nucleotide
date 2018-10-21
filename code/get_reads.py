@@ -10,8 +10,8 @@ def get_int(i, s):
 
 rng = (834, 895)
 
-o = open('data/61_to_78__' + str(rng[0]) + '_to_' + str(rng[1]) + '.txt', 'w')
-f = open('data/MSSA_78_1720493_1789360.fa', 'r')
+o = open('../data/61_to_78__' + str(rng[0]) + '_to_' + str(rng[1]) + '.txt', 'w')
+f = open('../data/MSSA_78_1720493_1789360.fa', 'r')
 
 f.readline()
 reference = ''.join(f.readlines()).replace('\n','')[rng[0]: rng[1] + 1]
@@ -19,7 +19,7 @@ print reference
 o.write('>seq\n' + reference + '\n')
 f.close()
 
-f = open('data/61_to_78.txt', 'r')
+f = open('../data/61_to_78.txt', 'r')
 
 l = f.readline()
 while l:
