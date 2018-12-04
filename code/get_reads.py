@@ -8,7 +8,7 @@ def get_int(i, s):
         i += 1
     return ret, i
 
-rng = (834, 895)
+rng = (500, 1500)
 
 o = open('../data/61_to_78__' + str(rng[0]) + '_to_' + str(rng[1]) + '.txt', 'w')
 f = open('../data/MSSA_78_1720493_1789360.fa', 'r')
@@ -22,6 +22,9 @@ f.close()
 f = open('../data/61_to_78.txt', 'r')
 
 l = f.readline()
+
+display_alignment = False
+
 while l:
     spl = l.split()
     l = f.readline()
@@ -57,12 +60,18 @@ while l:
             seq_idx += q
             ref_idx += q
         elif ch == 'D':
-            inter = intersect((ref_idx, ref_idx + q - 1), rng)
-            if inter[0] <= inter[1]:
-                aligned += '-' * (inter[1] - inter[0] + 1)
+            if display_alignment:
+                inter = intersect((ref_idx, ref_idx + q - 1), rng)
+                if inter[0] <= inter[1]:
+                    aligned += '-' * (inter[1] - inter[0] + 1)
             
             ref_idx += q
         elif ch == 'I':
+            if not display_alignment:
+                inter = intersect((ref_idx, ref_idx + q - 1), rng)
+                if inter[0] <= inter[1]:
+                    aligned += seq[seq_idx + (inter[0] - ref_idx) : seq_idx + (inter[1] - ref_idx) + 1]
+                
             seq_idx += q
         else:
             print 'ohno', ch

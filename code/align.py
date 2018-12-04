@@ -1,6 +1,7 @@
 from subprocess import *
 
-rng = (834, 895)
+#rng = (834, 895)
+rng = (500, 1500)
 f = open('../data/61_to_78__' + str(rng[0]) + '_to_' + str(rng[1]) + '.txt', 'r')
 
 def get_read():
@@ -99,7 +100,7 @@ for score in [(0,1,-1), (-1,1,-1), (-1,1,-2)]: # mismatch, match, indel
             o.write(nread[::-1] + '\n\n')
             
     # poa 
-    print '\n\n'
+    
     for t in [0, 1]:
         print 'working on poa', score, t
 
