@@ -76,7 +76,6 @@ def graph_to_graph(g1, l1, g2, l2):
         if ep1 in seen:
             continue
         
-        # this way of picking ep2 is bullshit
         ep2 = None
         for u in tg2[::-1]:
             if pa[ep1][u] != (-1,-1):
