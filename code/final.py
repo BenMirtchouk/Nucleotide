@@ -1,3 +1,139 @@
+class Node(object):
+    def __init__(self, nodeID=-1, base='N'):
+        self.ID = nodeID
+        self.base = base
+        self.outEdges = []
+        self.alignedTo = []
+
+    def __str__(self):
+        return "(%d:%s)" % (self.ID, self.base)
+
+    # def addOutEdge(self, neighbourID, label):
+    #     self._add_edge(self.outEdges, neighbourID, label)
+
+    # def nextNode(self, label):
+    #     """Returns the first (presumably only) outward neighbour
+    #        having the given edge label"""
+    #     nextID = None
+    #     for e in self.outEdges:
+    #         if label in self.outEdges[e].labels:
+    #             nextID = e
+    #     return nextID
+
+    # @property
+    # def alignDegree(self):
+    #     return len(self.alignEdges)
+    #
+    # @property
+    # def outDegree(self):
+    #     return len(self.outEdges)
+
+
+class Edge(object):
+    def __init__(self, inNodeID=-1, outNodeID=-1, label=None):
+        self.inNodeID  = inNodeID
+        self.outNodeID = outNodeID
+        # if label is None:
+        #     self.labels = []
+        # elif type(label) == list:
+        #     self.labels = label
+        # else:
+        #     self.labels = [label]
+        # return
+
+    def __str__(self):
+        nodestr = "(%d) -> (%d) " % (self.inNodeID, self.outNodeID)
+        return nodestr
+
+        # if self.labels is None:
+        #     return nodestr
+        # else:
+        #     return nodestr + self.labels.__str__()
+
+
+class Graph(object):
+    def __init__(self, seq=None, label=None):
+        self._nextnodeID = 0
+        self._nnodes = 0
+        self._nedges = 0
+        self.nodedict = {}
+        self.nodeidlist = []   # allows a (partial) order to be imposed on the nodes
+        self.__needsort = False
+        self.__labels = []
+        self.__seqs = []
+        self.__starts = []
+
+        if seq is not None:
+            self.addUnmatchedSeq(seq, label)
+
+    def addNode(self, base):
+        nid = self._nextnodeID
+        newnode = Node(nid, base)
+        self.nodedict[nid] = newnode
+        self.nodeidlist.append(nid)
+        self._nnodes += 1
+        self._nextnodeID += 1
+        return nid
+
+    @property
+    def needsSort(self):
+        return self.__needsort
+
+    @property
+    def nNodes(self):
+        return self._nnodes
+
+    @property
+    def nEdges(self):
+        return self._nedges
+
+    # def jsOutput(self):
+    #     """returns a list of strings containing a a description of the graph for viz.js, http://visjs.org"""
+    #
+    #     # get the consensus sequence, which we'll use as the "spine" of the
+    #     # graph
+    #     path, __, __ = self.consensus()
+    #     pathdict = {}
+    #     for i, nodeID in enumerate(path):
+    #         pathdict[nodeID] = i*150
+    #
+    #     lines = ['var nodes = [']
+    #
+    #     ni = self.nodeiterator()
+    #     count = 0
+    #     for node in ni():
+    #         line = '    {id:'+str(node.ID)+', label: "'+node.base+'"'
+    #         if node.ID in pathdict and count % 5 == 0:
+    #             line += ', allowedToMoveX: false, x: ' + str(pathdict[node.ID]) + ', y: 0 , allowedToMoveY: true },'
+    #         else:
+    #             line += '},'
+    #         lines.append(line)
+    #
+    #     lines[-1] = lines[-1][:-1]
+    #     lines.append('];')
+    #
+    #     lines.append(' ')
+    #
+    #     lines.append('var edges = [')
+    #     ni = self.nodeiterator()
+    #     for node in ni():
+    #         nodeID = str(node.ID)
+    #         for edge in node.outEdges:
+    #             target = str(edge)
+    #             weight = str(len(node.outEdges[edge].labels)+1)
+    #             lines.append('    {from: '+nodeID+', to: '+target+', value: '+weight+'},')
+    #         for alignededge in node.alignedTo:
+    #             # These edges indicate alignment to different bases, and are
+    #             # undirected; thus make sure we only plot them once:
+    #             if node.ID > alignededge:
+    #                 continue
+    #             target = str(alignededge)
+    #             lines.append('    {from: '+nodeID+', to: '+target+', value: 1, style: "dash-line"},')
+    #     lines[-1] = lines[-1][:-1]
+    #     lines.append('];')
+    #     return lines
+
+
 cur = []
 
 def dfs(u, g, done):
