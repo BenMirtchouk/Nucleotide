@@ -6,51 +6,18 @@ class Node(object):
         self.alignedTo = []
 
     def __str__(self):
-        return "(%d:%s)" % (self.ID, self.base)
-
-    # def addOutEdge(self, neighbourID, label):
-    #     self._add_edge(self.outEdges, neighbourID, label)
-
-    # def nextNode(self, label):
-    #     """Returns the first (presumably only) outward neighbour
-    #        having the given edge label"""
-    #     nextID = None
-    #     for e in self.outEdges:
-    #         if label in self.outEdges[e].labels:
-    #             nextID = e
-    #     return nextID
-
-    # @property
-    # def alignDegree(self):
-    #     return len(self.alignEdges)
-    #
-    # @property
-    # def outDegree(self):
-    #     return len(self.outEdges)
+        return "(%d:%s)" % (self.ID, self.base) 
 
 
 class Edge(object):
     def __init__(self, inNodeID=-1, outNodeID=-1, label=None):
         self.inNodeID  = inNodeID
         self.outNodeID = outNodeID
-        # if label is None:
-        #     self.labels = []
-        # elif type(label) == list:
-        #     self.labels = label
-        # else:
-        #     self.labels = [label]
-        # return
-
+        
     def __str__(self):
         nodestr = "(%d) -> (%d) " % (self.inNodeID, self.outNodeID)
         return nodestr
-
-        # if self.labels is None:
-        #     return nodestr
-        # else:
-        #     return nodestr + self.labels.__str__()
-
-
+    
 class Graph(object):
     def __init__(self, seq=None, label=None):
         self._nextnodeID = 0
@@ -87,123 +54,75 @@ class Graph(object):
     def nEdges(self):
         return self._nedges
 
-    # def jsOutput(self):
-    #     """returns a list of strings containing a a description of the graph for viz.js, http://visjs.org"""
-    #
-    #     # get the consensus sequence, which we'll use as the "spine" of the
-    #     # graph
-    #     path, __, __ = self.consensus()
-    #     pathdict = {}
-    #     for i, nodeID in enumerate(path):
-    #         pathdict[nodeID] = i*150
-    #
-    #     lines = ['var nodes = [']
-    #
-    #     ni = self.nodeiterator()
-    #     count = 0
-    #     for node in ni():
-    #         line = '    {id:'+str(node.ID)+', label: "'+node.base+'"'
-    #         if node.ID in pathdict and count % 5 == 0:
-    #             line += ', allowedToMoveX: false, x: ' + str(pathdict[node.ID]) + ', y: 0 , allowedToMoveY: true },'
-    #         else:
-    #             line += '},'
-    #         lines.append(line)
-    #
-    #     lines[-1] = lines[-1][:-1]
-    #     lines.append('];')
-    #
-    #     lines.append(' ')
-    #
-    #     lines.append('var edges = [')
-    #     ni = self.nodeiterator()
-    #     for node in ni():
-    #         nodeID = str(node.ID)
-    #         for edge in node.outEdges:
-    #             target = str(edge)
-    #             weight = str(len(node.outEdges[edge].labels)+1)
-    #             lines.append('    {from: '+nodeID+', to: '+target+', value: '+weight+'},')
-    #         for alignededge in node.alignedTo:
-    #             # These edges indicate alignment to different bases, and are
-    #             # undirected; thus make sure we only plot them once:
-    #             if node.ID > alignededge:
-    #                 continue
-    #             target = str(alignededge)
-    #             lines.append('    {from: '+nodeID+', to: '+target+', value: 1, style: "dash-line"},')
-    #     lines[-1] = lines[-1][:-1]
-    #     lines.append('];')
-    #     return lines
-
-
 cur = []
 
-def dfs(u, g, done):
+def dfs(u, graph, visited): # depth first search
     global cur
     
-    if u in done:
+    if u in visited:
         return
     
-    for v in g[u]:
-        dfs(v, g, done)
+    for v in graph[u]:
+        dfs(v, graph, visited)
     
-    done.add(u)
+    visited.add(u)
     cur.append(u)
 
-def topo(g):
+def topo(graph):
     global cur
     
-    n = len(g)
-    done = set()
+    visited = set()
     
     ret = []
-    for i in g:
-        if i not in done:
+    for i in graph:
+        if i not in visited:
             cur = []
-            dfs(i, g, done)        
+            dfs(i, graph, visited)        
             ret += cur 
     
     return ret[::-1]
 
-def graph_to_graph(g1, l1, g2, l2):
+def graph_to_graph(graph1, l1, graph2, l2): # graph to graph alignment! 
     
-    print 'topo ',g1
-    tg1 = topo(g1)
-    print 'res:',tg1
+    print 'topo ',graph1
+    tg1 = topo(graph1) #topologically sorted graph1
+    print 'res:',graph1
     print '-'*50
     
-    print 'topo ',g2
-    tg2 = topo(g2)
+    print 'topo ',graph2
+    tg2 = topo(graph2) #topologically sorted graph2
     print 'res:',tg2
     print '-'*50
     
-    dp = {i : {j : 0 for j in g2} for i in g1}
+    dp = {i : {j : 0 for j in graph2} for i in graph1}
     
-    pa = {i : {j : (-1,-1) for j in g2} for i in g1}
+    parent = {i : {j : (-1,-1) for j in graph2} for i in graph1}
     
-    for i in tg1:
-        for j in tg2:
+    for node_tg1 in tg1:
+        for node_tg2 in tg2:
             
-            for u in g1[i]:
-                for v in g2[j]:
+            for node_g1 in graph1[i]:
+                for node_g2 in graph2[node_tg2]:
                     
-                    if l1[u] == l2[v]:
-                        if dp[u][v] < dp[i][j] + 1:
-                            dp[u][v] = dp[i][j] + 1
-                            pa[u][v] = (i,j)    
+                    if l1[node_g1] == l2[node_g2]:
+                        if dp[node_g1][node_g2] < dp[node_tg1][node_tg2] + 1:
+                            dp[node_g1][node_g2] = dp[node_tg1][node_tg2] + 1
+                            parent[node_g1][node_g2] = (node_tg1, node_tg2)    
                     else:
-                        if dp[u][v] < dp[i][j] - 2:
-                            dp[u][v] = dp[i][j] - 2
-                            pa[u][v] = (i,j)
+                        if dp[node_g1][node_g2] < dp[node_tg1][node_tg2] - 2:
+                            dp[node_g1][node_g2] = dp[node_tg1][node_tg2] - 2
+                            parent[node_g1][node_g2] = (node_tg1, node_tg2)
                 
-                    if dp[u][j] < dp[i][j] - 1:
-                        dp[u][j] = dp[i][j] - 1
-                        pa[u][j] = (i,j)
+                    if dp[node_g1][node_tg2] < dp[node_tg1][node_tg2] - 1:
+                        dp[node_g1][node_tg2] = dp[node_tg1][node_tg2] - 1
+                        parent[node_g1][node_tg2] = (node_tg1,node_tg2)
                     
-                    if dp[i][v] < dp[i][j] - 1:
-                        dp[i][v] = dp[i][j] - 1
-                        pa[i][v] = (i,j)
+                    if dp[node_tg1][node_g2] < dp[node_tg1][node_tg2] - 1:
+                        dp[node_tg1][node_g2] = dp[node_tg1][node_tg2] - 1
+                        parent[node_tg1][node_g2] = (node_tg1,node_tg2)
     
-    newg, newl = g1.copy(), l1.copy()
-    newg.update(g2)
+    new_graph, newl = graph1.copy(), l1.copy()
+    new_graph.update(graph2)
     newl.update(l2)
 
     seen = set()
@@ -214,7 +133,7 @@ def graph_to_graph(g1, l1, g2, l2):
         
         ep2 = None
         for u in tg2[::-1]:
-            if pa[ep1][u] != (-1,-1):
+            if parent[ep1][u] != (-1,-1):
                 ep2 = u
                 break
         
@@ -227,7 +146,7 @@ def graph_to_graph(g1, l1, g2, l2):
             done.add(u)
             seen.add(u[0])
             
-            par = pa[u[0]][u[1]]
+            par = parent[u[0]][u[1]]
             
             if par[0] != -1 and par[0] != u[0] and par[1] != u[1]:
                 print 'align',(u[0],u[1]-100)
