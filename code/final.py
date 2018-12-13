@@ -6,10 +6,11 @@ class Node(object):
         self.ID = nodeID
         self.base = base
         self.outEdges = []
+        self.inEdges = []
         self.alignedTo = []
 
     def __str__(self):
-        return "(%d:%s)" % (self.ID, self.base) 
+        return "(%d:%s) %s" % (self.ID, self.base, str([str(e) for e in self.outEdges])) 
 
 
 class Edge(object):
@@ -17,211 +18,204 @@ class Edge(object):
         self.inNodeID  = inNodeID
         self.outNodeID = outNodeID
         
+        if label is None:
+            self.labels = []
+        elif isinstance(label, list):
+            self.labels = label
+        else:
+            self.labels = [label]
+        
     def __str__(self):
-        nodestr = "(%d) -> (%d) " % (self.inNodeID, self.outNodeID)
-        return nodestr
+        return "(%d) -> (%d) %s" % (self.inNodeID, self.outNodeID, self.labels)
     
 class Graph(object):
     def __init__(self, seq=None, label=None):
-        self._nextnodeID = 0
-        self._nnodes = 0
-        self._nedges = 0
+        self.nnodes = 0
+        self.nedges = 0
         self.nodedict = {}
         self.nodeidlist = []   # allows a (partial) order to be imposed on the nodes
-        self.__needsort = False
-        self.__labels = []
+        
+        self.label = label
+        
+        self._nextnodeID = 0
         self.__seqs = []
         self.__starts = []
-
+        self.__needsort = True
+        
         if seq is not None:
-            self.addUnmatchedSeq(seq, label)
+            prev_nid = None
+            
+            for c in seq:
+                nid = self.addNode(c)
+                
+                if prev_nid is not None:
+                    self.addEdge(prev_nid, nid, label)
+                    self.nedges += 1
+                
+                prev_nid = nid
+            
+            self.__seqs.append(label)
 
+    def topological_sort(self):
+        visited = set()
+        current = []
+        
+        def dfs(nid):
+            if nid in visited:
+                return
+            
+            for out_edge in self.nodedict[nid].outEdges:
+                dfs(out_edge.outNodeID)
+            
+            visited.add(nid)
+            current.append(nid)
+        
+        self.nodeidlist = []
+        
+        for nid in self.nodedict:
+            if nid not in visited:
+                dfs(nid)   
+                self.nodeidlist.extend(current) 
+                current = []
+        
+        self.nodeidlist = self.nodeidlist[::-1]
+        
+    def topological_order(self):
+        if self.__needsort:
+            self.topological_sort()
+        return self.nodeidlist
+        
     def addNode(self, base):
         nid = self._nextnodeID
         newnode = Node(nid, base)
         self.nodedict[nid] = newnode
-        self.nodeidlist.append(nid)
-        self._nnodes += 1
+        self.nnodes += 1
         self._nextnodeID += 1
         return nid
+    
+    def addEdge(self, inNodeID, outNodeID, label = None):
+        self.nodedict[inNodeID].outEdges.append(Edge(inNodeID, outNodeID, label))
+        self.nodedict[outNodeID].inEdges.append(Edge(inNodeID, outNodeID, label))
+        self.nedges += 1
+    
+    def __str__(self):
+        return '\n'.join([str(self.nodedict[nid]) for nid in self.nodedict])
 
-    @property
-    def needsSort(self):
-        return self.__needsort
-
-    @property
-    def nNodes(self):
-        return self._nnodes
-
-    @property
-    def nEdges(self):
-        return self._nedges
-
-cur = []
-
-def dfs(u, graph, visited): # depth first search
-    global cur
-    
-    if u in visited:
-        return
-    
-    for v in graph[u]:
-        dfs(v, graph, visited)
-    
-    visited.add(u)
-    cur.append(u)
-
-def topo(graph):
-    global cur
-    
-    visited = set()
-    
-    ret = []
-    for i in graph:
-        if i not in visited:
-            cur = []
-            dfs(i, graph, visited)        
-            ret += cur 
-    
-    return ret[::-1]
-
-def graph_to_graph(graph1, l1, graph2, l2): # graph to graph alignment! 
-    
-    print 'topo ',graph1
-    tg1 = topo(graph1) #topologically sorted graph1
-    print 'res:',graph1
-    print '-'*50
-    
-    print 'topo ',graph2
-    tg2 = topo(graph2) #topologically sorted graph2
-    print 'res:',tg2
-    print '-'*50
-    
-    dp = {i : {j : 0 for j in graph2} for i in graph1}
-    
-    parent = {i : {j : (-1,-1) for j in graph2} for i in graph1}
-    
-    for node_tg1 in tg1:
-        for node_tg2 in tg2:
-            
-            for node_g1 in graph1[i]:
-                for node_g2 in graph2[node_tg2]:
-                    
-                    if l1[node_g1] == l2[node_g2]:
-                        if dp[node_g1][node_g2] < dp[node_tg1][node_tg2] + 1:
-                            dp[node_g1][node_g2] = dp[node_tg1][node_tg2] + 1
-                            parent[node_g1][node_g2] = (node_tg1, node_tg2)    
+    @staticmethod
+    def align(graph1, graph2):
+        # dp[i][j] = best score to have aligned the first i bases of g1 & j bases of g2
+        dp = [[-10**4]*(graph2.nnodes+1) for i in range(graph1.nnodes+1)]
+        
+        # parent[i][j] = index into dp that led to the current best dp[i][j]
+        parent = [[None]*(graph2.nnodes+1) for i in range(graph1.nnodes+1)]
+        
+        dp[0][0] = 0
+        
+        topo1 = graph1.topological_order()
+        topo2 = graph2.topological_order()
+        
+        # if we have a new maximum, we update both the value and the parent, else nothing changes
+        def max_with_parent(current_val, new_val, current_parent, new_parent):
+            if new_val > current_val:
+                return new_val, new_parent
+            else:
+                return current_val, current_parent
+        
+        for i in range(graph1.nnodes+1):
+            for j in range(graph2.nnodes+1):
+                
+                if i+1 <= graph1.nnodes: 
+                    # try insertion in g1 or deletion in g2
+                    dp[i+1][j], parent[i+1][j] = max_with_parent(dp[i+1][j], dp[i][j]-1, parent[i+1][j], (i,j)) 
+                
+                if j+1 <= graph2.nnodes: 
+                    # try insertion in g2 or deletion in g1
+                    dp[i][j+1], parent[i][j+1] = max_with_parent(dp[i][j+1], dp[i][j]-1, parent[i][j+1], (i,j)) 
+                
+                if i+1 <= graph1.nnodes and j+1 <= graph2.nnodes: 
+                    # try align the current bases
+                    if graph1.nodedict[topo1[i]].base == graph2.nodedict[topo2[j]].base:
+                        dp[i+1][j+1], parent[i+1][j+1] = max_with_parent(dp[i+1][j+1], dp[i][j]+1, parent[i+1][j+1], (i,j)) 
                     else:
-                        if dp[node_g1][node_g2] < dp[node_tg1][node_tg2] - 2:
-                            dp[node_g1][node_g2] = dp[node_tg1][node_tg2] - 2
-                            parent[node_g1][node_g2] = (node_tg1, node_tg2)
+                        dp[i+1][j+1], parent[i+1][j+1] = max_with_parent(dp[i+1][j+1], dp[i][j]-2, parent[i+1][j+1], (i,j)) 
+        
+        print dp[graph1.nnodes][graph2.nnodes]
+        
+        seen = set()
+        done = set()
+        for node1 in range(graph1.nnodes+1)[::-1]:
+            if node1 in seen:
+                continue
+            
+            for node2 in range(graph2.nnodes+1)[::-1]:
+                if parent[node1][node2] != (-1,-1):
+                    break
+            
+            dp_index = (node1, node2)
+            
+            while dp_index != None:
+                if dp_index in done:
+                    break
                 
-                    if dp[node_g1][node_tg2] < dp[node_tg1][node_tg2] - 1:
-                        dp[node_g1][node_tg2] = dp[node_tg1][node_tg2] - 1
-                        parent[node_g1][node_tg2] = (node_tg1,node_tg2)
+                done.add(dp_index)
+                seen.add(dp_index[0])
+                
+                parent_index = parent[dp_index[0]][dp_index[1]]
+                
+                if parent_index != None and parent_index[0] != dp_index[0] and parent_index[1] != dp_index[1]:
+                    print 'align',(topo1[parent_index[0]],topo2[parent_index[1]])
+                    pass
                     
-                    if dp[node_tg1][node_g2] < dp[node_tg1][node_tg2] - 1:
-                        dp[node_tg1][node_g2] = dp[node_tg1][node_tg2] - 1
-                        parent[node_tg1][node_g2] = (node_tg1,node_tg2)
-    
-    new_graph, newl = graph1.copy(), l1.copy()
-    new_graph.update(graph2)
-    newl.update(l2)
+                dp_index = parent_index
+            print '-'*50
 
-    seen = set()
-    done = set()
-    for ep1 in tg1[::-1]:
-        if ep1 in seen:
-            continue
-        
-        ep2 = None
-        for u in tg2[::-1]:
-            if parent[ep1][u] != (-1,-1):
-                ep2 = u
-                break
-        
-        print 'start at',ep1, ep2-100 
-        u = (ep1, ep2)
-        while u != (-1,-1):
-            if u in done:
-                break
-            
-            done.add(u)
-            seen.add(u[0])
-            
-            par = parent[u[0]][u[1]]
-            
-            if par[0] != -1 and par[0] != u[0] and par[1] != u[1]:
-                print 'align',(u[0],u[1]-100)
-                pass
-                
-            u = par
-        print '-'*50
-        
-flr = 0
+'''
+# testcase 1
+g1 = Graph('SATCAAAGTC','seq1')
+g2 = Graph('STTCAAGTTG','seq2')
+Graph.align(g1,g2)
+'''
 
-def seq_to_graph(s):
-    global flr
-    
-    g = {}
-    for i in range(len(s)-1):
-        g[i+flr] = [i+1+flr]
-    g[len(s)-1+flr] = []
-    
-    l = {}
-    for i in range(len(s)):
-        l[i+flr] = s[i]
-    
-    flr += len(s)
+# testcase 2
+g1 = Graph()
+l1 = 'SGCCCTGCAGTA'
 
-    return g,l
+for i in range(12):
+    g1.addNode(l1[i])
 
+g1.addEdge(0,1)
+g1.addEdge(1,2)
+g1.addEdge(1,8)
+g1.addEdge(2,3)
+g1.addEdge(8,9)
+g1.addEdge(9,10)
+g1.addEdge(3,4)
+g1.addEdge(10,4)
+g1.addEdge(4,5)
+g1.addEdge(5,6)
+g1.addEdge(6,7)
+g1.addEdge(6,11)
 
-# s1 = 'SATCAAAGTC'
-# g1,l1 = seq_to_graph(s1)
-# s2 = 'STTCAAGTTG'
-# g2,l2 = seq_to_graph(s2)
+g2 = Graph()
+l2 = 'SGAGATCTGTACA'
 
-g1 = {i : {} for i in range(12)}
-g1[0] = [1]
-g1[1] = [2,8]
-g1[2] = [3]
-g1[3] = [4]
-g1[4] = [5]
-g1[5] = [6]
-g1[6] = [7,11]
-g1[7] = []
-g1[8] = [9]
-g1[9] = [10]
-g1[10] = [4]
-g1[11] = []
+for i in range(13):
+    g2.addNode(l2[i])
 
-l1 = {i:['S','G','C','C','C','T','G','C','A','G','T','A'][i] for i in range(12)}
+g2.addEdge(0,1)
+g2.addEdge(1,2)
+g2.addEdge(2,3)
+g2.addEdge(2,11)
+g2.addEdge(11,6)
+g2.addEdge(3,4)
+g2.addEdge(4,5)
+g2.addEdge(5,6)
+g2.addEdge(6,7)
+g2.addEdge(6,12)
+g2.addEdge(7,8)
+g2.addEdge(12,8)
+g2.addEdge(8,9)
+g2.addEdge(9,10)
 
-g2 = {i+100 : [] for i in range(13)}
-g2[0+100] = [1+100]
-g2[1+100] = [2+100]
-g2[2+100] = [3+100,11+100]
-g2[3+100] = [4+100]
-g2[4+100] = [5+100]
-g2[5+100] = [6+100]
-g2[6+100] = [7+100,12+100]
-g2[7+100] = [8+100]
-g2[8+100] = [9+100]
-g2[9+100] = [10+100]
-g2[10+100] = []
-g2[11+100] = [6+100]
-g2[12+100] = [8+100]
-
-l2 = {i+100:['S','G','A','G','A','T','C','T','G','T','A','C','A'][i] for i in range(13)}
-
-print 'l1:',l1
-print 'g1:',g1
-print '-'*50
-
-print 'l2:',l2
-print 'g2:',g2
-print '-'*50
-
-graph_to_graph(g1,l1,g2,l2)
+Graph.align(g1,g2)
 
