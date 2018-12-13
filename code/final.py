@@ -1,3 +1,6 @@
+# Node, Edge, and Graph objects are based off of POA py
+# These objects will be used to implement our Graph-to-Graph algorithm
+
 class Node(object):
     def __init__(self, nodeID=-1, base='N'):
         self.ID = nodeID
