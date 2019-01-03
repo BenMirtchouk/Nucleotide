@@ -5,14 +5,28 @@ class Node(object):
     def __init__(self, nodeID=-1, base='N'):
         self.ID = nodeID
         self.base = base
-        self.outEdges = []
-        self.inEdges = []
-        self.alignedTo = []
+        self.outEdges = {} # outEdge[id] stores the out edge between self and id
+        self.alignedTo = {} # alignedTo[id] stores the aligned edge between self and id
 
     def __str__(self):
-        return "(%d:%s) %s" % (self.ID, self.base, str([str(e) for e in self.outEdges])) 
+        return "(%d:%s) %s ||||| %s" % (self.ID, self.base, ["(%s: %s)" % (e, self.outEdges[e]) for e in self.outEdges], ["(%s: %s)" % (e, self.alignedTo[e]) for e in self.alignedTo]) 
 
-
+    def alignTo(self, nodeID, label):
+        if nodeID in self.alignedTo:
+            self.alignedTo[nodeID].addlabel(label)
+        else:
+            self.alignedTo[nodeID] = Edge(self.ID, nodeID, label)
+        
+    # return if a new edge was created
+    def addEdge(self, nodeID, label):
+        if nodeID in self.outEdges:
+            self.outEdges[nodeID].addlabel(label)
+            return False
+        else:
+            self.outEdges[nodeID] =  Edge(self.ID, nodeID, label)
+            return True
+        
+        
 class Edge(object):
     def __init__(self, inNodeID=-1, outNodeID=-1, label=None):
         self.inNodeID  = inNodeID
@@ -27,6 +41,12 @@ class Edge(object):
         
     def __str__(self):
         return "(%d) -> (%d) %s" % (self.inNodeID, self.outNodeID, self.labels)
+        
+    def addlabel(self, label):
+        if isinstance(label, list):
+            self.labels.extend(label)
+        else:
+            self.labels.append(label)
     
 class Graph(object):
     def __init__(self, seq=None, label=None):
@@ -35,7 +55,12 @@ class Graph(object):
         self.nodedict = {}
         self.nodeidlist = []   # allows a (partial) order to be imposed on the nodes
         
-        self.label = label
+        if label is None:
+            self.label = []
+        elif isinstance(label, list):
+            self.label = label
+        else:
+            self.label = [label]
         
         self._nextnodeID = 0
         self.__seqs = []
@@ -56,6 +81,10 @@ class Graph(object):
             
             self.__seqs.append(label)
 
+    def align_nodes(self, id1, id2, label):
+        self.nodedict[id1].alignTo(id2, label)
+        self.nodedict[id2].alignTo(id1, label)
+    
     def topological_sort(self):
         visited = set()
         current = []
@@ -64,8 +93,8 @@ class Graph(object):
             if nid in visited:
                 return
             
-            for out_edge in self.nodedict[nid].outEdges:
-                dfs(out_edge.outNodeID)
+            for out_nbr in self.nodedict[nid].outEdges:
+                dfs(self.nodedict[nid].outEdges[out_nbr].outNodeID)
             
             visited.add(nid)
             current.append(nid)
@@ -94,9 +123,8 @@ class Graph(object):
         return nid
     
     def addEdge(self, inNodeID, outNodeID, label = None):
-        self.nodedict[inNodeID].outEdges.append(Edge(inNodeID, outNodeID, label))
-        self.nodedict[outNodeID].inEdges.append(Edge(inNodeID, outNodeID, label))
-        self.nedges += 1
+        if self.nodedict[inNodeID].addEdge(outNodeID, label):
+            self.nedges += 1
     
     def __str__(self):
         return '\n'.join([str(self.nodedict[nid]) for nid in self.nodedict])
@@ -143,16 +171,22 @@ class Graph(object):
         
         seen = set()
         done = set()
-        for node1 in range(graph1.nnodes+1)[::-1]:
+        alias = dict() # maps graph1 node numbers to graph2
+        aligned = []
+        
+        # pick last unseen node from first graph
+        for node1 in range(graph1.nnodes, -1, -1):
             if node1 in seen:
                 continue
             
-            for node2 in range(graph2.nnodes+1)[::-1]:
-                if parent[node1][node2] != (-1,-1):
+            # select where in the dp array to start
+            for node2 in range(graph2.nnodes, -1, -1):
+                if parent[node1][node2] != None:
                     break
             
             dp_index = (node1, node2)
             
+            # move backwards through the parent chain in dp
             while dp_index != None:
                 if dp_index in done:
                     break
@@ -162,18 +196,58 @@ class Graph(object):
                 
                 parent_index = parent[dp_index[0]][dp_index[1]]
                 
+                # if both indicies changed we have alignment
                 if parent_index != None and parent_index[0] != dp_index[0] and parent_index[1] != dp_index[1]:
-                    print 'align',(topo1[parent_index[0]],topo2[parent_index[1]])
-                    pass
+                    n1 = graph1.nodedict[ topo1[parent_index[0]] ]
+                    n2 = graph2.nodedict[ topo2[parent_index[1]] ]
+                    
+                    if n1.base == n2.base:
+                        alias[ n2.ID ] = n1.ID
+                    else:
+                        aligned.append( (n1.ID, n2.ID) )
                     
                 dp_index = parent_index
-            print '-'*50
+        
+        for nodeID in topo2:
+            if nodeID not in alias:
+                nd = graph2.nodedict[ nodeID ]
+                alias[nodeID] = graph1.addNode(nd.base)
+            
+            print nodeID, alias[nodeID] 
+        
+        for nodeID in topo1:
+            nd2 = graph2.nodedict[ nodeID ]
+            nd1 = graph1.nodedict[ alias[nodeID] ]
+            
+            for outNodeID in nd2.outEdges:
+                graph1.addEdge(alias[nodeID], alias[outNodeID], nd2.outEdges[outNodeID].labels)
+            
+            for alignedID in n2.alignedTo:
+                graph1.align_nodes(alias[nodeID], alias[alignedID], graph2.label)
+                
+                
+        for n1ID, n2ID in aligned:
+            graph1.align_nodes(n1ID, alias[ n2ID ], graph1.label + graph2.label)
+            print 'align',(n1ID, alias[ n2ID ])
+            
 
 '''
+0 1 2 3 4 5 6 7 8 9
+S A T C A A A G T C
+S T T C A A G T T G
+'''
+        
 # testcase 1
 g1 = Graph('SATCAAAGTC','seq1')
 g2 = Graph('STTCAAGTTG','seq2')
+
+print '0 1 2 3 4 5 6 7 8 9'
+print 'S A T C A A A G T C'
+print 'S T T C A A G T T G'
+
 Graph.align(g1,g2)
+
+print g1
 '''
 
 # testcase 2
@@ -219,3 +293,5 @@ g2.addEdge(9,10)
 
 Graph.align(g1,g2)
 
+
+'''
