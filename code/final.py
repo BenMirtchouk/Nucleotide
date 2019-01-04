@@ -9,7 +9,9 @@ class Node(object):
         self.alignedTo = {} # alignedTo[id] stores the aligned edge between self and id
 
     def __str__(self):
-        return "(%d:%s) %s ||||| %s" % (self.ID, self.base, ["(%s: %s)" % (e, self.outEdges[e]) for e in self.outEdges], ["(%s: %s)" % (e, self.alignedTo[e]) for e in self.alignedTo]) 
+        edges = '  ,  '.join(["%s" % self.outEdges[e] for e in self.outEdges])
+        aligned = '  ,  '.join(["%s" % self.alignedTo[n] for n in self.alignedTo])
+        return "(%d:%s)\t%s%s| %s" % (self.ID, self.base, edges, ' '*(50-len(edges)), aligned) 
 
     def alignTo(self, nodeID, label):
         if nodeID in self.alignedTo:
@@ -40,7 +42,7 @@ class Edge(object):
             self.labels = [label]
         
     def __str__(self):
-        return "(%d) -> (%d) %s" % (self.inNodeID, self.outNodeID, self.labels)
+        return "%d -> %d %s" % (self.inNodeID, self.outNodeID, ', '.join(self.labels))
         
     def addlabel(self, label):
         if isinstance(label, list):
@@ -215,28 +217,22 @@ class Graph(object):
             
             print nodeID, alias[nodeID] 
         
-        for nodeID in topo1:
+        for nodeID in topo2:
             nd2 = graph2.nodedict[ nodeID ]
             nd1 = graph1.nodedict[ alias[nodeID] ]
             
             for outNodeID in nd2.outEdges:
                 graph1.addEdge(alias[nodeID], alias[outNodeID], nd2.outEdges[outNodeID].labels)
             
-            for alignedID in n2.alignedTo:
+            for alignedID in nd2.alignedTo:
                 graph1.align_nodes(alias[nodeID], alias[alignedID], graph2.label)
                 
                 
         for n1ID, n2ID in aligned:
             graph1.align_nodes(n1ID, alias[ n2ID ], graph1.label + graph2.label)
-            print 'align',(n1ID, alias[ n2ID ])
             
 
 '''
-0 1 2 3 4 5 6 7 8 9
-S A T C A A A G T C
-S T T C A A G T T G
-'''
-        
 # testcase 1
 g1 = Graph('SATCAAAGTC','seq1')
 g2 = Graph('STTCAAGTTG','seq2')
@@ -251,47 +247,45 @@ print g1
 '''
 
 # testcase 2
-g1 = Graph()
+g1 = Graph(label='seq1')
 l1 = 'SGCCCTGCAGTA'
-
 for i in range(12):
     g1.addNode(l1[i])
 
-g1.addEdge(0,1)
-g1.addEdge(1,2)
-g1.addEdge(1,8)
-g1.addEdge(2,3)
-g1.addEdge(8,9)
-g1.addEdge(9,10)
-g1.addEdge(3,4)
-g1.addEdge(10,4)
-g1.addEdge(4,5)
-g1.addEdge(5,6)
-g1.addEdge(6,7)
-g1.addEdge(6,11)
+g1.addEdge(0,1,'seq1')
+g1.addEdge(1,2, 'seq1')
+g1.addEdge(1,8, 'seq1')
+g1.addEdge(2,3, 'seq1')
+g1.addEdge(8,9, 'seq1')
+g1.addEdge(9,10, 'seq1')
+g1.addEdge(3,4, 'seq1')
+g1.addEdge(10,4, 'seq1')
+g1.addEdge(4,5, 'seq1')
+g1.addEdge(5,6, 'seq1')
+g1.addEdge(6,7, 'seq1')
+g1.addEdge(6,11, 'seq1')
 
-g2 = Graph()
+g2 = Graph(label='seq2')
 l2 = 'SGAGATCTGTACA'
 
 for i in range(13):
     g2.addNode(l2[i])
 
-g2.addEdge(0,1)
-g2.addEdge(1,2)
-g2.addEdge(2,3)
-g2.addEdge(2,11)
-g2.addEdge(11,6)
-g2.addEdge(3,4)
-g2.addEdge(4,5)
-g2.addEdge(5,6)
-g2.addEdge(6,7)
-g2.addEdge(6,12)
-g2.addEdge(7,8)
-g2.addEdge(12,8)
-g2.addEdge(8,9)
-g2.addEdge(9,10)
+g2.addEdge(0,1, 'seq2')
+g2.addEdge(1,2, 'seq2')
+g2.addEdge(2,3, 'seq2')
+g2.addEdge(2,11, 'seq2')
+g2.addEdge(11,6, 'seq2')
+g2.addEdge(3,4, 'seq2')
+g2.addEdge(4,5, 'seq2')
+g2.addEdge(5,6, 'seq2')
+g2.addEdge(6,7, 'seq2')
+g2.addEdge(6,12, 'seq2')
+g2.addEdge(7,8, 'seq2')
+g2.addEdge(12,8, 'seq2')
+g2.addEdge(8,9, 'seq2')
+g2.addEdge(9,10, 'seq2')
 
 Graph.align(g1,g2)
 
-
-'''
+print g1
