@@ -29,12 +29,10 @@ class Node(object):
             self.outEdges[nodeID].addlabel(label)
             return False
         else:
-            self.outEdges[nodeID] =  Edge(self.ID, nodeID, label)
+            self.outEdges[nodeID] = Edge(self.ID, nodeID, label)
             return True
         
-        
 class Edge(object):
-    
     def __init__(self, inNodeID=-1, outNodeID=-1, label=None):
         self.inNodeID  = inNodeID
         self.outNodeID = outNodeID
@@ -72,7 +70,6 @@ class Graph(object):
         
         self._nextnodeID = 0
         self.__seqs = []
-        self.__starts = []
         self.__needsort = True
         
         if seq is not None:
@@ -198,7 +195,10 @@ class Graph(object):
         if useConsensus:
             cons = {nid:i for i, nid in enumerate(self.consensus())}
         else:
-            cons = {nid:i for i, nid in enumerate(self.nodeidlist)}    
+            cons = {nid:i for i, nid in enumerate(self.nodeidlist)} ##
+        
+        topo = self.topological_order()
+        topod = {nid:i for i,nid in enumerate(topo)}
         
         nodes = 'var nodes = ['
         edges = 'var edges = ['
@@ -209,7 +209,9 @@ class Graph(object):
             if nodeID in cons: 
                 extra = ', fixed: {{ x : true }}, x: {0}, y: 0'.format(cons[nodeID]*150) # horizontal
                 # extra = ', fixed: {{ y : true }}, x: 0, y: {0}'.format(cons[nodeID]*150) # vertical
-            
+            else:
+                extra = ', x: {0}, y: 0'.format(topod[nodeID]*150)
+                
             nodes += '{{ id:{0}, label: "{1}"{2} }},'.format(nodeID, self.nodedict[nodeID].base, extra)
             node = self.nodedict[nodeID]
             

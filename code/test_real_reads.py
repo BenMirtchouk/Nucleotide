@@ -4,7 +4,7 @@ import sys
 from math import log, ceil
 
 # seqs = []
-# f = open("61_to_78__800_to_1000.txt","r")
+# f = open("61_to_78__834_to_895.txt","r")
 # for i in range(100):
 #     name,seq = f.readline(),f.readline()
 #     seqs.append(Graph(seq, name[1:]))
