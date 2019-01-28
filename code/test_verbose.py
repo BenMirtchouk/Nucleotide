@@ -1,5 +1,5 @@
-from Graph import *
-from Aligner import *
+from .Graph import *
+from .Aligner import *
 import sys
 from math import log, ceil
 
@@ -420,9 +420,9 @@ for i in range(1,n+1):
         if j+(1<<(i-1)) >= n_seqs:
             break
         
-        print 'aligning',j,j+(1<<(i-1))
+        print('aligning',j,j+(1<<(i-1)))
         if j == 16 and i == 4:
-            print 'nope'
+            print('nope')
             nope = True
             break
         
@@ -435,18 +435,18 @@ for i in range(1,n+1):
 data += seqs[16].graphData(arrows=True)
 data += seqs[24].graphData(arrows=True)
 
-print '16'*50
-print seqs[16]
-print '16'*50
+print('16'*50)
+print(seqs[16])
+print('16'*50)
 
-print '24'*50
-print seqs[24]
-print '24'*50
+print('24'*50)
+print(seqs[24])
+print('24'*50)
 
-print '*'*100
+print('*'*100)
 align = Aligner(seqs[16],seqs[24])
 align.align()
-print '*'*100
+print('*'*100)
 
 data += seqs[16].graphData(useConsensus=False, arrows=True)
 

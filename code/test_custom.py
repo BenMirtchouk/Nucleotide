@@ -1,5 +1,5 @@
-from Graph import *
-from Aligner import *
+from .Graph import *
+from .Aligner import *
 
 data = ''
 
@@ -73,14 +73,14 @@ data += g3.graphData()
 
 ####### align (1&2) & (3&4) ######
 
-print '//'*50
-print g1
-print '//'*50
-print g3
-print '//'*50
+print('//'*50)
+print(g1)
+print('//'*50)
+print(g3)
+print('//'*50)
 Graph.align(g1,g3)
 data += g1.graphData()
-print '//'*50
+print('//'*50)
 
 ######## generate html #########
 
@@ -96,6 +96,6 @@ doc = '''
 </html>
 '''.format(data)
 
-print 'output'
+print('output')
 with open('out.html','w') as f:
     f.write(doc)
