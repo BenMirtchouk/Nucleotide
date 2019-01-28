@@ -112,9 +112,8 @@ class Aligner(object):
                         Aligner.max_with_parent(self.dp[self.graph1.nnodes][self.graph2.nnodes], self.dp[node1][node2] + 2*score['indel'], \
                                                 self.parent[self.graph1.nnodes][self.graph2.nnodes], (node1,node2) )
     
-    # once we have an alignment score matrix (self.dp, self.parent), find which nodes need to be self.aligned starting at dp_index (and update [self.alias, self.aligned] accordingly)
+    # once we have an alignment score matrix (self.dp, self.parent), find which nodes need to be aligned starting at dp_index (and update [alias, aligned] accordingly)
     def traverseBack(self, dp_index):
-        # print 'traverseBack',dp_index
         self.seen1_updt = set()
         self.seen2_updt = set()
         
