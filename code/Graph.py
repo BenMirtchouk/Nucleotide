@@ -9,7 +9,8 @@ class Node(object):
     def __init__(self, nodeID=-1, base='N'):
         self.ID = nodeID
         self.base = base
-        self.outEdges = {} # outEdge[id] stores the out edge between self and id
+        self.inEdges = {}   # inEdge[id]    stores the in      edge between self and id
+        self.outEdges = {}  # outEdge[id]   stores the out     edge between self and id
         self.alignedTo = {} # alignedTo[id] stores the aligned edge between self and id
 
     def __str__(self):
@@ -24,13 +25,22 @@ class Node(object):
             self.alignedTo[nodeID] = Edge(self.ID, nodeID, label)
         
     # return if a new edge was created
-    def addEdge(self, nodeID, label):
+    def addOutEdge(self, nodeID, label):
         if nodeID in self.outEdges:
             self.outEdges[nodeID].addlabel(label)
             return False
         else:
             self.outEdges[nodeID] = Edge(self.ID, nodeID, label)
             return True
+            
+    def addInEdge(self, nodeID, label):
+        if nodeID in self.inEdges:
+            self.inEdges[nodeID].addlabel(label)
+            return False
+        else:
+            self.inEdges[nodeID] = Edge(nodeID, self.ID, label)
+            return True
+            
         
 class Edge(object):
     def __init__(self, inNodeID=-1, outNodeID=-1, label=None):
@@ -89,6 +99,21 @@ class Graph(object):
     def align_nodes(self, id1, id2, label):
         self.nodedict[id1].alignTo(id2, label)
         self.nodedict[id2].alignTo(id1, label)
+        
+    def merge_nodes(self, id1, id2):
+        if id1 == id2:
+            return
+        nd1 = self.nodedict[id1]
+        nd2 = self.nodedict[id2]
+        
+        for outNodeID in nd2.outEdges:
+            self.addEdge(id1, outNodeID, nd2.outEdges[outNodeID].labels)
+            
+        for inNodeID in nd2.inEdges:
+            self.addEdge(inNodeID, id1, nd2.inEdges[inNodeID].labels)
+            
+        for alignedID in nd2.alignedTo: 
+            self.align_nodes(id1, alignedID, self.label)
     
     ## TODO break topo ties based on score
     def topological_sort(self):
@@ -114,24 +139,41 @@ class Graph(object):
                     queue.append(nbr_id)
         
         if self.nnodes != len(self.nodeidlist):
-            print 'dammit'
-            print self.nodeidlist
-            doc='''
-<html>
-    <head>
-      <title>NuCLeOTidE</title>
-      <script type="text/javascript" src="visjs/vis.js"></script>
-      <link href="visjs/vis-network.min.css" rel="stylesheet" type="text/css"/>
-    </head>
-    <body>
-        {0}
-    </body>
-</html>
-'''.format(self.graphData(useConsensus=False, arrows=True))
-            print 'output'
-            with open('out_error.html','w') as f:
-                f.write(doc)
+            print 'bad'
             exit(0)
+        
+    def breaksAcyclic(self, id1, id2):
+        recStack = set()
+        done = set()
+        
+        def dfs(u, done, recStack):
+            if u in done:
+                return False
+            if u in recStack:
+                return True
+  
+            if u == id1 or u == id2:
+                recStack.add(id1)
+                recStack.add(id2)
+                for v in self.nodedict[id1].outEdges.keys() + self.nodedict[id2].outEdges.keys():
+                    if dfs(v, done, recStack):
+                        return True
+                done.add(id1)
+                done.add(id2)
+            else:
+                recStack.add(u)
+                for v in self.nodedict[u].outEdges:
+                    if dfs(v, done, recStack):
+                        return True
+                done.add(u)
+                
+            return False
+            
+        for nid in self.nodedict:
+            if nid not in done:
+                if dfs(nid, done, recStack):
+                    return True
+        return False           
         
     def topological_order(self):
         if self.__needsort:
@@ -147,9 +189,10 @@ class Graph(object):
         return nid
     
     def addEdge(self, inNodeID, outNodeID, label = None):
-        if self.nodedict[inNodeID].addEdge(outNodeID, label):
+        if self.nodedict[inNodeID].addOutEdge(outNodeID, label):
             self.nedges += 1
-    
+        self.nodedict[outNodeID].addInEdge(inNodeID, label)
+        
     def __str__(self):
         return '\n'.join([str(self.nodedict[nid]) for nid in self.nodedict])
 
@@ -197,20 +240,20 @@ class Graph(object):
         else:
             cons = {nid:i for i, nid in enumerate(self.nodeidlist)} ##
         
-        topo = self.topological_order()
-        topod = {nid:i for i,nid in enumerate(topo)}
+        num_cons = 0
         
         nodes = 'var nodes = ['
         edges = 'var edges = ['
         accountedFor = set()
         
-        for nodeID in self.nodedict:
+        for nodeID in self.nodeidlist:
             extra = ''
             if nodeID in cons: 
                 extra = ', fixed: {{ x : true }}, x: {0}, y: 0'.format(cons[nodeID]*150) # horizontal
                 # extra = ', fixed: {{ y : true }}, x: 0, y: {0}'.format(cons[nodeID]*150) # vertical
+                num_cons += 1
             else:
-                extra = ', x: {0}, y: 0'.format(topod[nodeID]*150)
+                extra = ', x: {0}, y: 0'.format(num_cons*150)
                 
             nodes += '{{ id:{0}, label: "{1}"{2} }},'.format(nodeID, self.nodedict[nodeID].base, extra)
             node = self.nodedict[nodeID]

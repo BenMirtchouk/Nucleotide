@@ -1,5 +1,5 @@
-from Graph import *
-from Aligner import *
+from .Graph import *
+from .Aligner import *
 import sys
 from math import log, ceil
 
@@ -420,7 +420,7 @@ for i in range(1,n+1):
         if j+(1<<(i-1)) >= n_seqs:
             break
         
-        print 'aligning',j,j+(1<<(i-1))
+        print('aligning',j,j+(1<<(i-1)))
         
         align = Aligner(seqs[ j ],seqs[ j+(1<<(i-1)) ])
         align.align()
