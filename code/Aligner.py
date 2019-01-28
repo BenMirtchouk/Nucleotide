@@ -14,14 +14,6 @@ class Aligner(object):
     def __init__(self, graph1, graph2):
         self.graph1 = graph1
         self.graph2 = graph2
-
-    # if we have a new maximum, we update both the value and the self.parent, else nothing changes
-    @staticmethod
-    def max_with_parent(current_val, new_val, current_parent, new_parent):
-        if new_val > current_val:
-            return new_val, new_parent
-        else:
-            return current_val, current_parent
                 
     def align(self):
         self.performDP()
@@ -37,15 +29,13 @@ class Aligner(object):
         
         self.traverseBack((self.graph1.nnodes, self.graph2.nnodes))
         
-        # pick last unseen node from first graph
         for node1 in self.topo1[::-1]:
             if node1 in self.seen1:
                 continue
             
-            # select where in the self.dp array to start
             dp_index = None
             
-            for node2 in self.topo2[::-1]: ## TODO use two-pointers to make this O(n) not O(n^2)
+            for node2 in self.topo2[::-1]:
                 if node2 not in self.seen2:
                     # check if potential dp_index has too low a score to be considered
                     best = -inf
@@ -69,9 +59,6 @@ class Aligner(object):
         # self.dp[i][j] = best score to have self.aligned up to (and including) node id i in g1 and j in g2
         self.dp = [[-inf]*(self.graph2.nnodes+1) for i in range(self.graph1.nnodes+1)]
         
-        # self.parent[i][j] = index into self.dp that led to the current best self.dp[i][j]
-        self.parent = [[None]*(self.graph2.nnodes+1) for i in range(self.graph1.nnodes+1)]
-        
         self.dp[0][0] = 0
         
         self.topo1 = self.graph1.topological_order()
@@ -85,40 +72,28 @@ class Aligner(object):
                 
                 # insertion
                 for nbr1 in self.graph1.nodedict[node1].outEdges:
-                    self.dp[nbr1][node2], self.parent[nbr1][node2] = \
-                        Aligner.max_with_parent(self.dp[nbr1][node2], self.dp[node1][node2] + score['indel'], \
-                                                self.parent[nbr1][node2], (node1,node2) )
+                    self.dp[nbr1][node2], max(self.dp[nbr1][node2], self.dp[node1][node2] + score['indel'])
                 
                 # deletion
                 for nbr2 in self.graph2.nodedict[node2].outEdges:
-                    self.dp[node1][nbr2], self.parent[node1][nbr2] = \
-                        Aligner.max_with_parent(self.dp[node1][nbr2], self.dp[node1][node2] + score['indel'], \
-                                                self.parent[node1][nbr2], (node1,node2) )
+                    self.dp[node1][nbr2], max(self.dp[node1][nbr2], self.dp[node1][node2] + score['indel'])
                     
                 # alignment
                 for nbr1 in self.graph1.nodedict[node1].outEdges:
                     for nbr2 in self.graph2.nodedict[node2].outEdges:
-                        self.dp[nbr1][nbr2], self.parent[nbr1][nbr2] = \
-                            Aligner.max_with_parent(self.dp[nbr1][nbr2], self.dp[node1][node2] + (score['match'] if base1 == base2 else score['mismatch']), \
-                                                    self.parent[nbr1][nbr2], (node1,node2) )
+                        self.dp[nbr1][nbr2], max(self.dp[nbr1][nbr2], self.dp[node1][node2] + (score['match'] if base1 == base2 else score['mismatch']))
                 
                 # end alignment
                 if len(self.graph1.nodedict[node1].outEdges) == 0 and len(self.graph2.nodedict[node2].outEdges) == 0:
-                    self.dp[self.graph1.nnodes][self.graph2.nnodes], self.parent[self.graph1.nnodes][self.graph2.nnodes] = \
-                        Aligner.max_with_parent(self.dp[self.graph1.nnodes][self.graph2.nnodes], self.dp[node1][node2] + (score['match'] if base1 == base2 else score['mismatch']), \
-                                                self.parent[self.graph1.nnodes][self.graph2.nnodes], (node1,node2) )
-                        
-                    self.dp[self.graph1.nnodes][self.graph2.nnodes], self.parent[self.graph1.nnodes][self.graph2.nnodes] = \
-                        Aligner.max_with_parent(self.dp[self.graph1.nnodes][self.graph2.nnodes], self.dp[node1][node2] + 2*score['indel'], \
-                                                self.parent[self.graph1.nnodes][self.graph2.nnodes], (node1,node2) )
+                    self.dp[self.graph1.nnodes][self.graph2.nnodes] = max(self.dp[self.graph1.nnodes][self.graph2.nnodes], self.dp[node1][node2] + (score['match'] if base1 == base2 else score['mismatch']))
+                    self.dp[self.graph1.nnodes][self.graph2.nnodes] = max(self.dp[self.graph1.nnodes][self.graph2.nnodes], self.dp[node1][node2] + 2*score['indel'])
     
-    # once we have an alignment score matrix (self.dp, self.parent), find which nodes need to be self.aligned starting at dp_index (and update [self.alias, self.aligned] accordingly)
+    # once we have an alignment score matrix (dp, parent), find which nodes need to be aligned starting at dp_index (and update [alias, aligned] accordingly)
     def traverseBack(self, dp_index):
-        # print 'traverseBack',dp_index
         self.seen1_updt = set()
         self.seen2_updt = set()
         
-        # move backwards through the self.parent chain in self.dp
+        # move backwards through the parent chain in self.dp
         while dp_index != None:
             if dp_index[0] in self.seen1 or dp_index[1] in self.seen2:
                 break
@@ -131,8 +106,12 @@ class Aligner(object):
             else:
                 self.seenContext[dp_index[0]] = max(self.seenContext[dp_index[0]], self.dp[dp_index[0]][dp_index[1]])
             
-            self.parent_index = self.parent[dp_index[0]][dp_index[1]]
-            
+            self.parent_index = None
+            for i in range(graph1.nnodes):
+                for j in range(graph2.nnodes):
+                    if i in dp_index[0].outEdges and j in dp_index[1].outEdges and abs(dp[i][j] - dp[dp_index[0]][dp_index[1]]) == 1:
+                        self.parent_index = (i,j)
+             
             # if both indicies changed we have alignment
             if self.parent_index != None and self.parent_index[0] != dp_index[0] and self.parent_index[1] != dp_index[1]:
                 n1 = self.graph1.nodedict[ self.parent_index[0] ]
@@ -171,18 +150,15 @@ class Aligner(object):
                     print self.graph2.nodedict
                     exit(0)
                 
-                # don't connect to self
                 if self.alias[nodeID] != self.alias[outNodeID]:
                     self.graph1.addEdge(self.alias[nodeID], self.alias[outNodeID], nd2.outEdges[outNodeID].labels)
             
             for alignedID in nd2.alignedTo: 
-                # don't align to self
                 if self.alias[nodeID] != self.alias[alignedID]:
                     self.graph1.align_nodes(self.alias[nodeID], self.alias[alignedID], self.graph2.label)
                 
         
         for n1ID, n2ID in self.aligned:
-            # don't align to self
             if n1ID != self.alias[n2ID]:
                 self.graph1.align_nodes(n1ID, self.alias[n2ID], self.graph1.label + self.graph2.label)
     
