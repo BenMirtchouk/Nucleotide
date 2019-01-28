@@ -26,16 +26,30 @@ class Aligner(object):
     def align(self):
         self.performDP()
         
+        g1n = self.graph1.nnodes
+        g2n = self.graph2.nnodes
+        
         # init tracking variables
          
         self.seen1 = set()
         self.seen2 = set()
         self.seenContext = dict()
-        self.alias = dict() # maps self.graph1 node numbers to self.graph2
+        
+        # maps graph1 node numbers to graph2
+        # TODO fix this, probably requires outputing a new graph, not altering graph1 like before
+        self.alias = {self.graph2.nodedict[nd].ID : self.graph1.addNode(self.graph2.nodedict[nd].base) for nd in self.graph2.nodeidlist}
+        for nid in self.graph2.nodeidlist:
+            nd = self.graph2.nodedict[nid]
+            for outNodeID in nd.outEdges:
+                self.graph1.addEdge(nid, outNodeID, self.graph2.label)
+                
+            for outNodeID in nd.outEdges:
+                self.graph1.addEdge(nid, outNodeID, self.graph2.label)
+        
         self.aligned = []
         self.alreadyAligned = set()
         
-        self.traverseBack((self.graph1.nnodes, self.graph2.nnodes))
+        self.traverseBack((g1n, g2n))
         
         # pick last unseen node from first graph
         for node1 in self.topo1[::-1]:
@@ -63,7 +77,7 @@ class Aligner(object):
             
             self.traverseBack(dp_index)
         
-        self.encorporateAlignment()
+        # self.encorporateAlignment()
     
     def performDP(self):
         # self.dp[i][j] = best score to have self.aligned up to (and including) node id i in g1 and j in g2
@@ -137,14 +151,17 @@ class Aligner(object):
                 n1 = self.graph1.nodedict[ self.parent_index[0] ]
                 n2 = self.graph2.nodedict[ self.parent_index[1] ]
                 
-                # make sure aligning n1/n2 does not break acyclic-ness
                 
                     
                 # print '\talign',n1.ID,n2.ID
                 if n1.base == n2.base:
-                    self.alias[ n2.ID ] = n1.ID
+                    # make sure aligning n1/n2 does not break acyclic-ness
+                    if self.graph1.breaksAcyclic(n1.ID, self.alias[n2.ID]):
+                        continue
+                    
+                    self.graph1.merge_nodes(n1.ID, self.alias[n2.ID])
                 else:
-                    self.aligned.append( (n1.ID, n2.ID) )
+                    self.graph1.align_nodes(n1.ID, self.alias[n2.ID], self.graph1.label + self.graph2.label)
                 
             dp_index = self.parent_index
         
