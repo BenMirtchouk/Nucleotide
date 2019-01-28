@@ -152,36 +152,42 @@ class Graph(object):
     
     def __str__(self):
         return '\n'.join([str(self.nodedict[nid]) for nid in self.nodedict])
-          
-          
-    def dfsBack(u):
-        if len(u.inEdges) == 0:
-            return (0, [])
-        mx = None
-        for e in u.inEdges:
-            if mx is None or self.score[e.inNodeID][u] > self.score[mx][u]:
-                mx = e.inNodeID
-        
-        bk = dfsBack(mx)
-        return (bk[0]+self.score[e.inNodeID][u], bk[1]+[mx])
-    
+
+    # if we have a new maximum, we update both the value and the parent, else nothing changes
+    @staticmethod
+    def max_with_parent(current_val, new_val, current_parent, new_parent):
+        if new_val > current_val:
+            return new_val, new_parent
+        else:
+            return current_val, current_parent
+                
     def consensus(self):
         if self.nnodes == 0:
             return
         
-        topo = self.topological_order()
-        bst = (None,None)
+        dp = [0] * self.nnodes
+        parent = [None] * self.nnodes
+        dp[0] = 0
         
+        topo = self.topological_order()
         
         for nid in topo:
             for nbr_id in self.nodedict[nid].outEdges:
                 agreements = len(self.nodedict[nid].outEdges[nbr_id].labels)
                 
-                scr, chn = dfsBack(nid)
-                if scr > bst[0]:
-                    bst = (scr, chn)
+                dp[nbr_id], parent[nbr_id] = Graph.max_with_parent(dp[nbr_id], dp[nid] + agreements, parent[nbr_id], nid)
         
-        return bst[1][::-1]
+        nodeID = 0
+        for i in range(1, self.nnodes):
+            if dp[i] > dp[nodeID]:
+                nodeID = i
+        
+        path = []
+        while nodeID is not None:
+            path.append(nodeID)
+            nodeID = parent[nodeID]
+        
+        return path[::-1]
         
     def visJSoutput(self, divID, useConsensus=True,  arrows=False):
         
@@ -190,6 +196,8 @@ class Graph(object):
             cons = {nid:i for i, nid in enumerate(self.consensus())}
         else:
             cons = {nid:i for i, nid in enumerate(self.nodeidlist)} ##
+        
+        num_cons = 0
         
         nodes = 'var nodes = ['
         edges = 'var edges = ['
@@ -200,6 +208,9 @@ class Graph(object):
             if nodeID in cons: 
                 extra = ', fixed: {{ x : true }}, x: {0}, y: 0'.format(cons[nodeID]*150) # horizontal
                 # extra = ', fixed: {{ y : true }}, x: 0, y: {0}'.format(cons[nodeID]*150) # vertical
+                num_cons += 1
+            else:
+                extra = ', x: {0}, y: 0'.format(num_cons*150)
                 
             nodes += '{{ id:{0}, label: "{1}"{2} }},'.format(nodeID, self.nodedict[nodeID].base, extra)
             node = self.nodedict[nodeID]
