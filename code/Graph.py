@@ -1,6 +1,8 @@
 from collections import deque
 import random
 import string
+from math import log
+import heapq
 
 # Node, Edge, and Graph objects are based off of POA py
 # These objects will be used to implement our Graph-to-Graph algorithm
@@ -18,68 +20,47 @@ class Node(object):
         aligned = '  ,  '.join(["%s" % self.alignedTo[n] for n in self.alignedTo])
         return "(%d:%s)\t%s%s| %s" % (self.ID, self.base, edges, ' '*(60-len(edges)), aligned) 
 
-    def alignTo(self, nodeID, label):
+    def alignTo(self, nodeID, agreements):
         if nodeID in self.alignedTo:
-            self.alignedTo[nodeID].addlabel(label)
+            self.alignedTo[nodeID].agreements += agreements
         else:
-            self.alignedTo[nodeID] = Edge(self.ID, nodeID, label)
+            self.alignedTo[nodeID] = Edge(self.ID, nodeID, agreements)
         
     # return if a new edge was created
-    def addOutEdge(self, nodeID, label):
+    def addOutEdge(self, nodeID, agreements=1):
         if nodeID in self.outEdges:
-            self.outEdges[nodeID].addlabel(label)
+            self.outEdges[nodeID].agreements += agreements
             return False
         else:
-            self.outEdges[nodeID] = Edge(self.ID, nodeID, label)
+            self.outEdges[nodeID] = Edge(self.ID, nodeID, agreements)
             return True
             
-    def addInEdge(self, nodeID, label):
+    def addInEdge(self, nodeID, agreements=1):
         if nodeID in self.inEdges:
-            self.inEdges[nodeID].addlabel(label)
+            self.inEdges[nodeID].agreements += agreements
             return False
         else:
-            self.inEdges[nodeID] = Edge(nodeID, self.ID, label)
+            self.inEdges[nodeID] = Edge(nodeID, self.ID, agreements)
             return True
-            
         
 class Edge(object):
-    def __init__(self, inNodeID=-1, outNodeID=-1, label=None):
+    def __init__(self, inNodeID=-1, outNodeID=-1, agreements=1):
         self.inNodeID  = inNodeID
         self.outNodeID = outNodeID
-        
-        if label is None:
-            self.labels = []
-        elif isinstance(label, list):
-            self.labels = label
-        else:
-            self.labels = [label]
+        self.agreements = agreements
         
     def __str__(self):
-        return "%d -> %d %s" % (self.inNodeID, self.outNodeID, ', '.join(self.labels))
-    
-    def addlabel(self, label):
-        if isinstance(label, list):
-            self.labels.extend([lbl for lbl in label if lbl not in self.labels])
-        else:
-            if label not in self.labels:
-                self.labels.append(label)
+        return "%d -> %d [%d]" % (self.inNodeID, self.outNodeID, self.agreements)
     
 class Graph(object):
-    def __init__(self, seq=None, label=None):
+    def __init__(self, seq=None, seqs=0):
         self.nnodes = 0
         self.nedges = 0
         self.nodedict = {}
         self.nodeidlist = []   # allows a (partial) order to be imposed on the nodes
         
-        if label is None:
-            self.label = []
-        elif isinstance(label, list):
-            self.label = label
-        else:
-            self.label = [label]
-        
         self._nextnodeID = 0
-        self.__seqs = []
+        self._seqs = seqs
         self.__needsort = True
         
         if seq is not None:
@@ -89,31 +70,16 @@ class Graph(object):
                 nid = self.addNode(c)
                 
                 if prev_nid is not None:
-                    self.addEdge(prev_nid, nid, label)
+                    self.addEdge(prev_nid, nid)
                     self.nedges += 1
                 
                 prev_nid = nid
             
-            self.__seqs.append(label)
+            self._seqs = 1
 
-    def align_nodes(self, id1, id2, label):
-        self.nodedict[id1].alignTo(id2, label)
-        self.nodedict[id2].alignTo(id1, label)
-        
-    def merge_nodes(self, id1, id2):
-        if id1 == id2:
-            return
-        nd1 = self.nodedict[id1]
-        nd2 = self.nodedict[id2]
-        
-        for outNodeID in nd2.outEdges:
-            self.addEdge(id1, outNodeID, nd2.outEdges[outNodeID].labels)
-            
-        for inNodeID in nd2.inEdges:
-            self.addEdge(inNodeID, id1, nd2.inEdges[inNodeID].labels)
-            
-        for alignedID in nd2.alignedTo: 
-            self.align_nodes(id1, alignedID, self.label)
+    def align_nodes(self, id1, id2, agreements):
+        self.nodedict[id1].alignTo(id2, agreements)
+        self.nodedict[id2].alignTo(id1, agreements)
     
     ## TODO break topo ties based on score
     def topological_sort(self):
@@ -139,41 +105,24 @@ class Graph(object):
                     queue.append(nbr_id)
         
         if self.nnodes != len(self.nodeidlist):
-            print 'bad'
+            print 'dammit'
+            print self.nodeidlist
+            doc='''
+<html>
+    <head>
+      <title>NuCLeOTidE</title>
+      <script type="text/javascript" src="visjs/vis.js"></script>
+      <link href="visjs/vis-network.min.css" rel="stylesheet" type="text/css"/>
+    </head>
+    <body>
+        {0}
+    </body>
+</html>
+'''.format(self.graphData(useConsensus=False, arrows=True))
+            print 'output'
+            with open('out_error.html','w') as f:
+                f.write(doc)
             exit(0)
-        
-    def breaksAcyclic(self, id1, id2):
-        recStack = set()
-        done = set()
-        
-        def dfs(u, done, recStack):
-            if u in done:
-                return False
-            if u in recStack:
-                return True
-  
-            if u == id1 or u == id2:
-                recStack.add(id1)
-                recStack.add(id2)
-                for v in self.nodedict[id1].outEdges.keys() + self.nodedict[id2].outEdges.keys():
-                    if dfs(v, done, recStack):
-                        return True
-                done.add(id1)
-                done.add(id2)
-            else:
-                recStack.add(u)
-                for v in self.nodedict[u].outEdges:
-                    if dfs(v, done, recStack):
-                        return True
-                done.add(u)
-                
-            return False
-            
-        for nid in self.nodedict:
-            if nid not in done:
-                if dfs(nid, done, recStack):
-                    return True
-        return False           
         
     def topological_order(self):
         if self.__needsort:
@@ -188,11 +137,11 @@ class Graph(object):
         self._nextnodeID += 1
         return nid
     
-    def addEdge(self, inNodeID, outNodeID, label = None):
-        if self.nodedict[inNodeID].addOutEdge(outNodeID, label):
+    def addEdge(self, inNodeID, outNodeID, agreements=1):
+        if self.nodedict[inNodeID].addOutEdge(outNodeID, agreements):
             self.nedges += 1
-        self.nodedict[outNodeID].addInEdge(inNodeID, label)
-        
+        self.nodedict[outNodeID].addInEdge(inNodeID, agreements)
+    
     def __str__(self):
         return '\n'.join([str(self.nodedict[nid]) for nid in self.nodedict])
 
@@ -216,7 +165,7 @@ class Graph(object):
         
         for nid in topo:
             for nbr_id in self.nodedict[nid].outEdges:
-                agreements = len(self.nodedict[nid].outEdges[nbr_id].labels)
+                agreements = self.nodedict[nid].outEdges[nbr_id].agreements
                 
                 dp[nbr_id], parent[nbr_id] = Graph.max_with_parent(dp[nbr_id], dp[nid] + agreements, parent[nbr_id], nid)
         
@@ -232,7 +181,44 @@ class Graph(object):
         
         return path[::-1]
         
-    def visJSoutput(self, divID, useConsensus=True,  arrows=False):
+    def gephiOutput(self):
+        nodes = ''
+        edges = ''
+        accountedFor = set()
+        
+        for nodeID in self.nodeidlist:
+            extra = ''
+            if hasattr(self, 'scores'):
+                extra = '    conf {0}\n'.format(self.scores[nodeID])
+            
+            nodes += '\n  node\n  [\n    id {0}\n    label "{1}"\n{2}  ]'.format(nodeID, self.nodedict[nodeID].base, extra)
+            node = self.nodedict[nodeID]
+            
+            for nbr in node.outEdges:
+                agreements = node.outEdges[nbr].agreements
+                  
+                edges += '\n  edge\n  [\n    source {0}\n    target {1}\n    value {2}\n  ]'.format(nodeID, nbr, agreements)
+            
+            for nbr in node.alignedTo:
+                nbrEdge = node.alignedTo[nbr]
+                
+                if (nbrEdge.inNodeID, nbrEdge.outNodeID) in accountedFor or \
+                   (nbrEdge.outNodeID, nbrEdge.inNodeID) in accountedFor:
+                    continue
+                
+                accountedFor.add((nbrEdge.inNodeID, nbrEdge.outNodeID))
+                
+                agreements = nbrEdge.agreements
+                edges += '\n  edge\n  [\n    source {0}\n    target {1}\n    value {2}\n  ]'.format(nodeID, nbr, agreements)
+            
+        graph = 'graph \n[' + nodes + edges + '\n]'
+        
+        with open('test.gml','w') as f:
+            f.write(graph)
+        
+        return ''
+        
+    def visJSoutput(self, divID, useConsensus=True, arrows=False, vertical=False):
         
         cons = {}
         if useConsensus:
@@ -247,19 +233,24 @@ class Graph(object):
         accountedFor = set()
         
         for nodeID in self.nodeidlist:
+            if self.scores[nodeID] < 0.25:
+                continue
+            
             extra = ''
             if nodeID in cons: 
-                extra = ', fixed: {{ x : true }}, x: {0}, y: 0'.format(cons[nodeID]*150) # horizontal
-                # extra = ', fixed: {{ y : true }}, x: 0, y: {0}'.format(cons[nodeID]*150) # vertical
+                if vertical:
+                    extra = ', fixed: {{ y : true }}, x: 0, y: {0}'.format(cons[nodeID]*150) # vertical
+                else:
+                    extra = ', fixed: {{ x : true }}, x: {0}, y: 0'.format(cons[nodeID]*150) # horizontal
                 num_cons += 1
             else:
                 extra = ', x: {0}, y: 0'.format(num_cons*150)
                 
-            nodes += '{{ id:{0}, label: "{1}"{2} }},'.format(nodeID, self.nodedict[nodeID].base, extra)
+            nodes += '{{ id:{0}, label: "{1}"{2} }},'.format(nodeID, self.nodedict[nodeID].base + " " + str(self.nodedict[nodeID].ID), extra)
             node = self.nodedict[nodeID]
             
             for nbr in node.outEdges:
-                agreements = len(node.outEdges[nbr].labels)
+                agreements = node.outEdges[nbr].agreements
                   
                 edges += '{{from: {0}, to: {1}, value: {2}, arrows:{{ to: {{ enabled: {3}, scaleFactor: 1 }} }} }},'.format(nodeID, nbr, agreements, 'true' if arrows else 'false')
             
@@ -272,7 +263,7 @@ class Graph(object):
                 
                 accountedFor.add((nbrEdge.inNodeID, nbrEdge.outNodeID))
                 
-                agreements = len(nbrEdge.labels)
+                agreements = nbrEdge.agreements
                 edges += '{{ from: {0}, to: {1}, value: {2}, dashes: [10,15]}},'.format(nodeID, nbr, agreements)
         
         nodes = nodes[:-1] + '];'
@@ -301,9 +292,127 @@ class Graph(object):
     def randomString():
         return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
 
-    def graphData(self, useConsensus=True, arrows=False):
+    def graphData(self, useConsensus=True, arrows=False, vertical=False):
         rnd = self.randomString()
         div = '<div id="{0}"></div>'.format(rnd)
-        script = self.visJSoutput(rnd, useConsensus=useConsensus, arrows=arrows)
+        script = self.visJSoutput(rnd, useConsensus=useConsensus, arrows=arrows, vertical=vertical)
 
         return div + script
+    
+    def getRegex(self, threshold):
+        topo = self.topological_order()
+        
+        dist = [-1] * self.nnodes
+        def getdist(nid):
+            if dist[nid] != -1:
+                return dist[nid]
+            
+            dist[nid] = 0
+            for nbr_id in self.nodedict[nid].outEdges:
+                if self.scores[nbr_id] >= threshold:
+                    dist[nid] = max(dist[nid], getdist(nbr_id) + 1)
+            return dist[nid]
+        getdist(topo[0])
+        
+        def getTerm(node):
+            seen = set()
+            pq = []
+            for nbr_id in node.outEdges:
+                if nbr_id not in seen and self.scores[nbr_id] >= threshold:
+                    pq.append((-dist[nbr_id], nbr_id))
+                    seen.add(nbr_id)
+            heapq.heapify(pq)
+            
+            while len(pq) > 1:
+                nid = heapq.heappop(pq)[1]
+                for nbr_id in self.nodedict[nid].outEdges:
+                    if nbr_id not in seen and self.scores[nbr_id] >= threshold:
+                        seen.add(nbr_id)
+                        heapq.heappush(pq, (-dist[nbr_id], nbr_id))
+            
+            terminating_node = pq[0][1]
+            
+            return terminating_node
+        
+        def getSeq(node, last):
+            cur = node
+            ans = ''
+            while cur != last:
+                term = getTerm(self.nodedict[cur])
+                
+                answers = []
+                for nbr_id in self.nodedict[cur].outEdges:
+                    if self.scores[nbr_id] >= 0.25:
+                        answers.append(getSeq(nbr_id, term)[:-1])
+                
+                print 'DID',node,'->',last,'needs',cur,'->',term,'gave',answers
+                
+                if len(answers) == 1:
+                    ans += answers[0]
+                elif len(answers) > 1:
+                    ans += '({0})'.format('|'.join(answers))
+                ans += self.nodedict[term].base
+                
+                cur = term
+            
+            # print 'get',node,last,':'
+            # print '\tcase 2:', self.nodedict[node].base + ans
+            return self.nodedict[node].base + ans
+            
+        return getSeq(topo[0], topo[-1])
+        
+    def alignmentOutput(self):
+        score = [0.] * self.nnodes
+        count = [0] * self.nnodes
+        
+        # hmm
+        threshold = 0.25 
+        
+        topo = self.topological_order()
+        for nid in topo:
+            node = self.nodedict[nid]
+            
+            if len(node.inEdges) == 0:
+                score[nid] = 1
+                count[nid] = 1
+            
+            print '\n',nid,'->', score[nid], '/',count[nid]
+            if len(node.outEdges) == 1:
+                nbr_id = node.outEdges.keys()[0]
+                ag = node.outEdges[nbr_id].agreements
+                scr = 1.0 * ag/self._seqs
+                
+                print '\toffer',nid,'->',nbr_id, '=',score[nid] + scr, '/',count[nid]+1
+                if count[nbr_id] == 0 or (score[nid] + scr)/(count[nid] + 1) > score[nbr_id]/count[nbr_id]:
+                    score[nbr_id] = score[nid] + scr
+                    count[nbr_id] = count[nid] + 1
+                
+                continue
+            
+            for nbr_id in node.outEdges:
+                ag = node.outEdges[nbr_id].agreements
+                scr = 1.0 * ag/self._seqs
+                
+                print '\toffer',nid,'->',nbr_id, '=',scr, '/',1
+                if count[nbr_id] == 0 or scr > score[nbr_id] / count[nbr_id]:
+                    score[nbr_id] = scr
+                    count[nbr_id] = 1
+        
+        self.scores = [1.0*score[i]/count[i] for i in range(self.nnodes)]
+        
+        # snv = [62,63,64,65,66,75,76,68]
+        # for nid in snv:
+        #     print nid,self.nodedict[nid].base,score[nid]/count[nid]
+        
+        for i in range(self.nnodes):
+            print i,':',self.scores[i]
+        return self.getRegex(threshold)
+        
+# node 62 (T)
+# node 63 (A)
+# node 64 (A)
+# node 65 (T)
+# node 66 (G) <-- good example of what's wrong
+# node 75 (G)
+# node 76 (A)
+# node 68 (G)
