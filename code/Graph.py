@@ -233,9 +233,6 @@ class Graph(object):
         accountedFor = set()
         
         for nodeID in self.nodeidlist:
-            if self.scores[nodeID] < 0.25:
-                continue
-            
             extra = ''
             if nodeID in cons: 
                 if vertical:
