@@ -17,4 +17,4 @@
 
 ## Basic Example of Algorithm
 
-![Animation GIF](https://raw.githubusercontent.com/benmirtchouk/Nucleotide/master/algorithm_animation.gif)
+<img src="https://raw.githubusercontent.com/benmirtchouk/Nucleotide/master/algorithm_animation.gif" style="width:500px;margin:auto;display:block;" alt="Animation GIF"> 
