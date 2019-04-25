@@ -13,7 +13,7 @@ for i in range(100):
     name,seq = f.readline(),f.readline()
     seqs.append(Graph(seq, name[1:]))
   
-verbose = len(sys.argv) > 3 and sys.argv[3] == '-v'
+verbose = len(sys.argv) > 3 and (sys.argv[3] == '-v' or sys.argv[3] == '--verbose')
   
 data = ''
 
