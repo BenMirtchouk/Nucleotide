@@ -23,5 +23,7 @@
 
 ## Command Line Usage
 
-```cd code
-python Nucleotide.py {file} {number of reads} [-v|--verbose]```
+```bash
+cd code
+python Nucleotide.py {file} {number of reads} [-v|--verbose]
+```
