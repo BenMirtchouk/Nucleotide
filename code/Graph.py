@@ -233,6 +233,9 @@ class Graph(object):
         accountedFor = set()
         
         for nodeID in self.nodeidlist:
+            if self.scores[nodeID] < 0.4:
+                continue
+                
             extra = ''
             if nodeID in cons: 
                 if vertical:
@@ -247,7 +250,7 @@ class Graph(object):
             node = self.nodedict[nodeID]
             
             for nbr in node.outEdges:
-                agreements = node.outEdges[nbr].agreements
+                agreements = node.outEdges[nbr].agreements * (random.random() * 3 + 2)
                   
                 edges += '{{from: {0}, to: {1}, value: {2}, arrows:{{ to: {{ enabled: {3}, scaleFactor: 1 }} }} }},'.format(nodeID, nbr, agreements, 'true' if arrows else 'false')
             
