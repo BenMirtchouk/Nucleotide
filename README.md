@@ -20,3 +20,7 @@
 <p align="center">
 <img src="https://raw.githubusercontent.com/benmirtchouk/Nucleotide/master/algorithm_animation.gif" style="width:500px; margin:auto; display:block;" alt="Animation GIF"> 
 </p>
+
+## Command Line Usage
+
+`python test_real_reads.py {file} {number of reads} [-v|--verbose]`
