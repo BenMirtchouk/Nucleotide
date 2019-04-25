@@ -304,7 +304,7 @@ class Graph(object):
 
         return div + script
     
-    def getRegex(self, threshold):
+    def getRegex(self, threshold, verbose):
         topo = self.topological_order()
         
         dist = [-1] * self.nnodes
@@ -350,7 +350,8 @@ class Graph(object):
                     if self.scores[nbr_id] >= 0.25:
                         answers.append(getSeq(nbr_id, term)[:-1])
                 
-                print 'DID',node,'->',last,'needs',cur,'->',term,'gave',answers
+                if verbose:
+                    print 'DID',node,'->',last,'needs',cur,'->',term,'gave',answers
                 
                 if len(answers) == 1:
                     ans += answers[0]
@@ -364,7 +365,7 @@ class Graph(object):
             
         return getSeq(topo[0], topo[-1])
         
-    def alignmentOutput(self):
+    def alignmentOutput(self, verbose=False):
         score = [0.] * self.nnodes
         count = [0] * self.nnodes
         
@@ -379,13 +380,15 @@ class Graph(object):
                 score[nid] = 1
                 count[nid] = 1
             
-            print '\n',nid,'->', score[nid], '/',count[nid]
+            if verbose:
+                print '\n',nid,'->', score[nid], '/',count[nid]
             if len(node.outEdges) == 1:
                 nbr_id = node.outEdges.keys()[0]
                 ag = node.outEdges[nbr_id].agreements
                 scr = 1.0 * ag/self._seqs
                 
-                print '\toffer',nid,'->',nbr_id, '=',score[nid] + scr, '/',count[nid]+1
+                if verbose:
+                    print '\toffer',nid,'->',nbr_id, '=',score[nid] + scr, '/',count[nid]+1
                 if count[nbr_id] == 0 or (score[nid] + scr)/(count[nid] + 1) > score[nbr_id]/count[nbr_id]:
                     score[nbr_id] = score[nid] + scr
                     count[nbr_id] = count[nid] + 1
@@ -396,14 +399,16 @@ class Graph(object):
                 ag = node.outEdges[nbr_id].agreements
                 scr = 1.0 * ag/self._seqs
                 
-                print '\toffer',nid,'->',nbr_id, '=',scr, '/',1
+                if verbose:
+                    print '\toffer',nid,'->',nbr_id, '=',scr, '/',1
                 if count[nbr_id] == 0 or scr > score[nbr_id] / count[nbr_id]:
                     score[nbr_id] = scr
                     count[nbr_id] = 1
         
         self.scores = [1.0*score[i]/count[i] for i in range(self.nnodes)]
 
-        for i in range(self.nnodes):
-            print i,':',self.scores[i]
-        return self.getRegex(threshold)
-  
+        if verbose:
+            for i in range(self.nnodes):
+                print i,':',self.scores[i]
+        return self.getRegex(threshold, verbose)
+ 
