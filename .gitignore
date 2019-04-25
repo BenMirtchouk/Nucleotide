@@ -3,4 +3,5 @@
 *.exe
 *.pyc
 alignments
+visjs
 *.html
