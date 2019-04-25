@@ -20,13 +20,15 @@ class Node(object):
         aligned = '  ,  '.join(["%s" % self.alignedTo[n] for n in self.alignedTo])
         return "(%d:%s)\t%s%s| %s" % (self.ID, self.base, edges, ' '*(60-len(edges)), aligned) 
 
+    # Adds alignment edge between self and another node
     def alignTo(self, nodeID, agreements):
         if nodeID in self.alignedTo:
             self.alignedTo[nodeID].agreements += agreements
         else:
             self.alignedTo[nodeID] = Edge(self.ID, nodeID, agreements)
         
-    # return if a new edge was created
+    # Return if a new edge was created
+    # Adds an edge going out
     def addOutEdge(self, nodeID, agreements=1):
         if nodeID in self.outEdges:
             self.outEdges[nodeID].agreements += agreements
@@ -34,7 +36,8 @@ class Node(object):
         else:
             self.outEdges[nodeID] = Edge(self.ID, nodeID, agreements)
             return True
-            
+    
+    # Adds an edge going in        
     def addInEdge(self, nodeID, agreements=1):
         if nodeID in self.inEdges:
             self.inEdges[nodeID].agreements += agreements
@@ -58,7 +61,6 @@ class Graph(object):
         self.nedges = 0
         self.nodedict = {}
         self.nodeidlist = []   # allows a (partial) order to be imposed on the nodes
-        
         self._nextnodeID = 0
         self._seqs = seqs
         self.__needsort = True
@@ -81,7 +83,6 @@ class Graph(object):
         self.nodedict[id1].alignTo(id2, agreements)
         self.nodedict[id2].alignTo(id1, agreements)
     
-    ## TODO break topo ties based on score
     def topological_sort(self):
         inDeg = {}
         
@@ -104,8 +105,8 @@ class Graph(object):
                 if inDeg[nbr_id] == 0:
                     queue.append(nbr_id)
         
+        # Error checking, TODO delete this
         if self.nnodes != len(self.nodeidlist):
-            print 'dammit'
             print self.nodeidlist
             doc='''
 <html>
@@ -145,14 +146,16 @@ class Graph(object):
     def __str__(self):
         return '\n'.join([str(self.nodedict[nid]) for nid in self.nodedict])
 
-    # if we have a new maximum, we update both the value and the parent, else nothing changes
+    # If we have a new maximum, we update both the value and the parent, 
+    # Else nothing changes
     @staticmethod
     def max_with_parent(current_val, new_val, current_parent, new_parent):
         if new_val > current_val:
             return new_val, new_parent
         else:
             return current_val, current_parent
-                
+             
+    # Generating consensus path (path of highest confidence)   
     def consensus(self):
         if self.nnodes == 0:
             return
@@ -181,6 +184,7 @@ class Graph(object):
         
         return path[::-1]
         
+    # Generating .gml output for visualization
     def gephiOutput(self):
         nodes = ''
         edges = ''
@@ -218,6 +222,7 @@ class Graph(object):
         
         return ''
         
+    # Generating output for visJS visualization
     def visJSoutput(self, divID, useConsensus=True, arrows=False, vertical=False):
         
         cons = {}
@@ -355,8 +360,6 @@ class Graph(object):
                 
                 cur = term
             
-            # print 'get',node,last,':'
-            # print '\tcase 2:', self.nodedict[node].base + ans
             return self.nodedict[node].base + ans
             
         return getSeq(topo[0], topo[-1])
@@ -399,20 +402,8 @@ class Graph(object):
                     count[nbr_id] = 1
         
         self.scores = [1.0*score[i]/count[i] for i in range(self.nnodes)]
-        
-        # snv = [62,63,64,65,66,75,76,68]
-        # for nid in snv:
-        #     print nid,self.nodedict[nid].base,score[nid]/count[nid]
-        
+
         for i in range(self.nnodes):
             print i,':',self.scores[i]
         return self.getRegex(threshold)
-        
-# node 62 (T)
-# node 63 (A)
-# node 64 (A)
-# node 65 (T)
-# node 66 (G) <-- good example of what's wrong
-# node 75 (G)
-# node 76 (A)
-# node 68 (G)
+  
