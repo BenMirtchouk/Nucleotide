@@ -23,4 +23,5 @@
 
 ## Command Line Usage
 
-`python test_real_reads.py {file} {number of reads} [-v|--verbose]`
+`cd code`
+`python Nucleotide.py {file} {number of reads} [-v|--verbose]`
