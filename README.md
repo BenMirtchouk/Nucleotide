@@ -26,7 +26,7 @@
 ```bash
 cd code
 python Nucleotide.py [-h] [--verbose] n_seqs file
-```
+
 positional arguments:  
   n\_seqs         number of reads  
   file           path to file  
@@ -34,3 +34,4 @@ positional arguments:
 optional arguments:  
   -h, --help     show this help message and exit  
   --verbose, -v  toggle verbosity
+```
