@@ -28,7 +28,7 @@ cd code
 python Nucleotide.py [-h] [--verbose] n_seqs file
 
 positional arguments:  
-  n\_seqs         number of reads  
+  n_seqs         number of reads  
   file           path to file  
 
 optional arguments:  
