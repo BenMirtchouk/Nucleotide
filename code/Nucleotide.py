@@ -1,56 +1,65 @@
 from Graph import *
 from Aligner import *
+
 import sys
 from math import log, ceil
+import argparse
 
-if len(sys.argv) < 3:
-    print 'usage: ./test_real_reads.py {number of reads} {file} [-v]'
-    exit(0)
+parser = argparse.ArgumentParser()
+
+parser.add_argument('infile', type=argparse.FileType('r'), default=sys.stdin, help='seq input file')
+parser.add_argument('--verbosity', help='increase output verbosity')
+parser.add_argument('-n', '--nseqs', type=int, default=-1, help='number of seqs to align, default=all')
+# TODO:
+# parser.add_argument('-G', '--gap', type=int, default=-1, help='Gap penalty, default=-1')
+# parser.add_argument('-g', '--globalAlign', action='store_true', help='Global alignment (default: local)')
+# parser.add_argument('-s', '--simple', action='store_true', help='Simple method')
+# parser.add_argument('-m', '--match', type=int, default=1, help='Match score, default=+1')
+# parser.add_argument('-M', '--mismatch', type=int, default=-1, help='Mismatch score, default=-1')
+parser.add_argument('--html', type=argparse.FileType('w'), help='html output')
+parser.add_argument('--gephi', type=argparse.FileType('w'), help='gephi output')
+args = parser.parse_args()
 
 seqs = []
-f = open(sys.argv[2],"r")
-for i in range(100):
-    name,seq = f.readline(),f.readline()
-    seqs.append(Graph(seq, name[1:]))
+while 1:
+    name, seq = args.infile.readline(), args.infile.readline()
+    if not name or not seq:
+        break
+    seqs.append(Graph(seq[:-1], name[1:]))
   
-verbose = len(sys.argv) > 3 and (sys.argv[3] == '-v' or sys.argv[3] == '--verbose')
-  
-data = ''
-
-n_seqs = int(sys.argv[1])
-n_seqs = min(n_seqs, len(seqs))
-
+n_seqs = len(seqs) if args.nseqs == -1 else min(args.nseqs, len(seqs))
 n = int(ceil(log(n_seqs,2)))
 
-for i in range(1,n+1):
-    for j in range(0, 1<<n, 1<<i):
-        if j+(1<<(i-1)) >= n_seqs:
-            break
+for i in range(1,n_seqs):
+    print 'aligning',0,i
+    align = Aligner(seqs[0], seqs[i])
+    align.align()
+    
+# for i in range(1,n+1):
+#     for j in range(0, 1<<n, 1<<i):
+#         if j+(1<<(i-1)) >= n_seqs:
+#             break
         
-        print 'aligning',j,j+(1<<(i-1))
+#         print 'aligning',j,j+(1<<(i-1))
         
-        align = Aligner(seqs[j], seqs[ j+(1<<(i-1)) ])
-        align.align()
+#         align = Aligner(seqs[j], seqs[ j+(1<<(i-1)) ])
+#         align.align()
 
+if args.html:
+    doc = '''
+    <html>
+        <head>
+          <title>NuCLeOTidE</title>
+          <script type="text/javascript" src="visjs/vis.js"></script>
+          <link href="visjs/visnetwork.min.css" rel="stylesheet" type="text/css"/>
+        </head>
+        <body>
+            {0}
+        </body>
+    </html>
+    '''.format(seqs[0].graphData())
 
-# print seqs[0]
-print seqs[0].alignmentOutput(verbose=verbose)
-seqs[0].gephiOutput()
-data += seqs[0].graphData()
-######## generate html #########
-
-doc = '''
-<html>
-    <head>
-      <title>NuCLeOTidE</title>
-      <script type="text/javascript" src="visjs/vis.js"></script>
-      <link href="visjs/visnetwork.min.css" rel="stylesheet" type="text/css"/>
-    </head>
-    <body>
-        {0}
-    </body>
-</html>
-'''.format(data)
-
-with open('out.html','w') as f:
-    f.write(doc)
+    args.html.write(doc)
+if args.gephi:
+    args.gephi.write(seqs[0].gephiOutput())
+    

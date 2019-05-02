@@ -215,12 +215,7 @@ class Graph(object):
                 agreements = nbrEdge.agreements
                 edges += '\n  edge\n  [\n    source {0}\n    target {1}\n    value {2}\n  ]'.format(nodeID, nbr, agreements)
             
-        graph = 'graph \n[' + nodes + edges + '\n]'
-        
-        with open('test.gml','w') as f:
-            f.write(graph)
-        
-        return ''
+        return 'graph \n[' + nodes + edges + '\n]'
         
     # Generating output for visJS visualization
     def visJSoutput(self, divID, useConsensus=True, arrows=False, vertical=False):
@@ -238,9 +233,6 @@ class Graph(object):
         accountedFor = set()
         
         for nodeID in self.nodeidlist:
-            if self.scores[nodeID] < 0.4:
-                continue
-                
             extra = ''
             if nodeID in cons: 
                 if vertical:
@@ -251,11 +243,11 @@ class Graph(object):
             else:
                 extra = ', x: {0}, y: 0'.format(num_cons*150)
                 
-            nodes += '{{ id:{0}, label: "{1}"{2} }},'.format(nodeID, self.nodedict[nodeID].base + " " + str(self.nodedict[nodeID].ID), extra)
+            nodes += '{{ id:{0}, label: "{1}"{2} }},'.format(nodeID, self.nodedict[nodeID].base, extra)
             node = self.nodedict[nodeID]
             
             for nbr in node.outEdges:
-                agreements = node.outEdges[nbr].agreements * (random.random() * 3 + 2)
+                agreements = node.outEdges[nbr].agreements
                   
                 edges += '{{from: {0}, to: {1}, value: {2}, arrows:{{ to: {{ enabled: {3}, scaleFactor: 1 }} }} }},'.format(nodeID, nbr, agreements, 'true' if arrows else 'false')
             

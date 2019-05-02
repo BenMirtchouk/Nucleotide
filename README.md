@@ -25,5 +25,19 @@
 
 ```bash
 cd code
-python Nucleotide.py {file} {number of reads} [-v|--verbose]
+python Nucleotide.py [-h] [--verbosity VERBOSITY] [-n NSEQS] [--html HTML]
+                     [--gephi GEPHI]
+                     infile
+
+positional arguments:
+  infile                seq input file
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --verbosity VERBOSITY
+                        increase output verbosity
+  -n NSEQS, --nseqs NSEQS
+                        number of seqs to align, default=all
+  --html HTML           html output
+  --gephi GEPHI         gephi output
 ```
