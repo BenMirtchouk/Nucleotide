@@ -8,7 +8,7 @@ import argparse
 parser = argparse.ArgumentParser()
 
 parser.add_argument('infile', type=argparse.FileType('r'), default=sys.stdin, help='seq input file')
-parser.add_argument('--verbosity', help='increase output verbosity')
+parser.add_argument('-v', '--verbosity', type=int, default=0, help='increase output verbosity')
 parser.add_argument('-n', '--nseqs', type=int, default=-1, help='number of seqs to align, default=all')
 # TODO:
 # parser.add_argument('-G', '--gap', type=int, default=-1, help='Gap penalty, default=-1')
@@ -20,21 +20,24 @@ parser.add_argument('--html', type=argparse.FileType('w'), help='html output')
 parser.add_argument('--gephi', type=argparse.FileType('w'), help='gephi output')
 args = parser.parse_args()
 
+n = args.nseqs
 seqs = []
-while 1:
+while len(seqs) <= n or n == -1:
     name, seq = args.infile.readline(), args.infile.readline()
     if not name or not seq:
         break
     seqs.append(Graph(seq[:-1], name[1:]))
-  
-n_seqs = len(seqs) if args.nseqs == -1 else min(args.nseqs, len(seqs))
-n = int(ceil(log(n_seqs,2)))
 
-for i in range(1,n_seqs):
-    print 'aligning',0,i
+if n == -1:
+    n = len(seqs)
+
+for i in range(1, n):
+    if args.verbosity >= 1:
+        print 'aligning', 0, i
     align = Aligner(seqs[0], seqs[i])
     align.align()
     
+# n = int(ceil(log(n_seqs,2)))
 # for i in range(1,n+1):
 #     for j in range(0, 1<<n, 1<<i):
 #         if j+(1<<(i-1)) >= n_seqs:
