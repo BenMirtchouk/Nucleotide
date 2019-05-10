@@ -21,48 +21,60 @@ class Node(object):
         return "(%d:%s)\t%s%s| %s" % (self.ID, self.base, edges, ' '*(60-len(edges)), aligned) 
 
     # Adds alignment edge between self and another node
-    def alignTo(self, nodeID, agreements):
+    def alignTo(self, nodeID):
         if nodeID in self.alignedTo:
-            self.alignedTo[nodeID].agreements += agreements
+            # self.alignedTo[nodeID].labels |= labels
+            pass
         else:
-            self.alignedTo[nodeID] = Edge(self.ID, nodeID, agreements)
+            self.alignedTo[nodeID] = Edge(self.ID, nodeID)
         
     # Return if a new edge was created
     # Adds an edge going out
-    def addOutEdge(self, nodeID, agreements=1):
+    def addOutEdge(self, nodeID, labels):
         if nodeID in self.outEdges:
-            self.outEdges[nodeID].agreements += agreements
+            self.outEdges[nodeID].labels |= labels
             return False
         else:
-            self.outEdges[nodeID] = Edge(self.ID, nodeID, agreements)
+            self.outEdges[nodeID] = Edge(self.ID, nodeID, labels)
             return True
     
     # Adds an edge going in        
-    def addInEdge(self, nodeID, agreements=1):
+    def addInEdge(self, nodeID, labels):
         if nodeID in self.inEdges:
-            self.inEdges[nodeID].agreements += agreements
+            self.inEdges[nodeID].labels |= labels
             return False
         else:
-            self.inEdges[nodeID] = Edge(nodeID, self.ID, agreements)
+            self.inEdges[nodeID] = Edge(nodeID, self.ID, labels)
             return True
         
+    # from poapy
+    def nextNode(self, label):
+        """Returns the first (presumably only) outward neighbour
+           having the given edge label"""
+        nextID = None
+        for e in self.outEdges:
+            if label in self.outEdges[e].labels:
+                nextID = e
+        return nextID
+        
 class Edge(object):
-    def __init__(self, inNodeID=-1, outNodeID=-1, agreements=1):
+    def __init__(self, inNodeID, outNodeID, labels=None):
         self.inNodeID  = inNodeID
         self.outNodeID = outNodeID
-        self.agreements = agreements
+        self.labels = labels
         
     def __str__(self):
-        return "%d -> %d [%d]" % (self.inNodeID, self.outNodeID, self.agreements)
+        assert(self.labels==None or isinstance(self.labels, set))
+        return "%d -> %d [%s]" % (self.inNodeID, self.outNodeID, self.labels)
     
 class Graph(object):
-    def __init__(self, seq=None, seqs=0):
+    def __init__(self, name=None, seq=None, seqs=None):
         self.nnodes = 0
         self.nedges = 0
         self.nodedict = {}
         self.nodeidlist = []   # allows a (partial) order to be imposed on the nodes
         self._nextnodeID = 0
-        self._seqs = seqs
+        self.seqs = seqs
         self.__needsort = True
         
         if seq is not None:
@@ -72,16 +84,16 @@ class Graph(object):
                 nid = self.addNode(c)
                 
                 if prev_nid is not None:
-                    self.addEdge(prev_nid, nid)
+                    self.addEdge(prev_nid, nid, set([name]))
                     self.nedges += 1
                 
                 prev_nid = nid
             
-            self._seqs = 1
+            self.seqs = set([name])
 
-    def align_nodes(self, id1, id2, agreements):
-        self.nodedict[id1].alignTo(id2, agreements)
-        self.nodedict[id2].alignTo(id1, agreements)
+    def align_nodes(self, id1, id2):
+        self.nodedict[id1].alignTo(id2)
+        self.nodedict[id2].alignTo(id1)
     
     def topological_sort(self):
         inDeg = {}
@@ -138,10 +150,10 @@ class Graph(object):
         self._nextnodeID += 1
         return nid
     
-    def addEdge(self, inNodeID, outNodeID, agreements=1):
-        if self.nodedict[inNodeID].addOutEdge(outNodeID, agreements):
+    def addEdge(self, inNodeID, outNodeID, labels):
+        if self.nodedict[inNodeID].addOutEdge(outNodeID, labels):
             self.nedges += 1
-        self.nodedict[outNodeID].addInEdge(inNodeID, agreements)
+        self.nodedict[outNodeID].addInEdge(inNodeID, labels)
     
     def __str__(self):
         return '\n'.join([str(self.nodedict[nid]) for nid in self.nodedict])
@@ -168,7 +180,7 @@ class Graph(object):
         
         for nid in topo:
             for nbr_id in self.nodedict[nid].outEdges:
-                agreements = self.nodedict[nid].outEdges[nbr_id].agreements
+                agreements = len(self.nodedict[nid].outEdges[nbr_id].labels)
                 
                 dp[nbr_id], parent[nbr_id] = Graph.max_with_parent(dp[nbr_id], dp[nid] + agreements, parent[nbr_id], nid)
         
@@ -199,7 +211,7 @@ class Graph(object):
             node = self.nodedict[nodeID]
             
             for nbr in node.outEdges:
-                agreements = node.outEdges[nbr].agreements
+                agreements = len(node.outEdges[nbr].labels)
                   
                 edges += '\n  edge\n  [\n    source {0}\n    target {1}\n    value {2}\n  ]'.format(nodeID, nbr, agreements)
             
@@ -212,7 +224,7 @@ class Graph(object):
                 
                 accountedFor.add((nbrEdge.inNodeID, nbrEdge.outNodeID))
                 
-                agreements = nbrEdge.agreements
+                agreements = 1 # nbrEdge.agreements
                 edges += '\n  edge\n  [\n    source {0}\n    target {1}\n    value {2}\n  ]'.format(nodeID, nbr, agreements)
             
         return 'graph \n[' + nodes + edges + '\n]'
@@ -247,7 +259,7 @@ class Graph(object):
             node = self.nodedict[nodeID]
             
             for nbr in node.outEdges:
-                agreements = node.outEdges[nbr].agreements
+                agreements = len(node.outEdges[nbr].labels)
                   
                 edges += '{{from: {0}, to: {1}, value: {2}, arrows:{{ to: {{ enabled: {3}, scaleFactor: 1 }} }} }},'.format(nodeID, nbr, agreements, 'true' if arrows else 'false')
             
@@ -260,7 +272,7 @@ class Graph(object):
                 
                 accountedFor.add((nbrEdge.inNodeID, nbrEdge.outNodeID))
                 
-                agreements = nbrEdge.agreements
+                agreements = 1 # nbrEdge.agreements
                 edges += '{{ from: {0}, to: {1}, value: {2}, dashes: [10,15]}},'.format(nodeID, nbr, agreements)
         
         nodes = nodes[:-1] + '];'
@@ -376,7 +388,7 @@ class Graph(object):
                 print '\n',nid,'->', score[nid], '/',count[nid]
             if len(node.outEdges) == 1:
                 nbr_id = node.outEdges.keys()[0]
-                ag = node.outEdges[nbr_id].agreements
+                ag = len(node.outEdges[nbr_id].labels)
                 scr = 1.0 * ag/self._seqs
                 
                 if verbose:
@@ -388,7 +400,7 @@ class Graph(object):
                 continue
             
             for nbr_id in node.outEdges:
-                ag = node.outEdges[nbr_id].agreements
+                ag = len(node.outEdges[nbr_id].labels)
                 scr = 1.0 * ag/self._seqs
                 
                 if verbose:
@@ -403,4 +415,23 @@ class Graph(object):
             for i in range(self.nnodes):
                 print i,':',self.scores[i]
         return self.getRegex(threshold, verbose)
- 
+    
+    def trace_seqs(self):
+        output = []
+        length = 0
+        
+        topo = self.topological_order()
+        pos = {nid:i for i,nid in enumerate(topo)}
+        
+        for label in self.seqs:
+            cur = topo[0]
+            s = ['-'] * self.nnodes
+            while cur != None:
+                node = self.nodedict[cur]
+                
+                s[pos[node.ID]] = node.base
+                cur = node.nextNode(label)
+            output.append([label, ''.join(s)])
+        
+        return output        
+        

@@ -6,3 +6,6 @@ alignments
 visjs
 *.html
 *.gml
+*.sai
+*.bai
+*.fai

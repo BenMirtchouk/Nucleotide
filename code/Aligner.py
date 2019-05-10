@@ -68,7 +68,7 @@ class Aligner(object):
             self.traverseBack(dp_index)
         
         self.encorporateAlignment()
-        self.graph1._seqs += self.graph2._seqs
+        self.graph1.seqs |= self.graph2.seqs
     
     def performDP(self):
         # self.dp[i][j] = best score to have self.aligned up to (and including) node id i in g1 and j in g2
@@ -177,16 +177,16 @@ class Aligner(object):
                 
                 # don't connect to self
                 if self.alias[nodeID] != self.alias[outNodeID]:
-                    self.graph1.addEdge(self.alias[nodeID], self.alias[outNodeID], nd2.outEdges[outNodeID].agreements)
+                    self.graph1.addEdge(self.alias[nodeID], self.alias[outNodeID], nd2.outEdges[outNodeID].labels)
             
             for alignedID in nd2.alignedTo: 
                 # don't align to self
                 if self.alias[nodeID] != self.alias[alignedID]:
-                    self.graph1.align_nodes(self.alias[nodeID], self.alias[alignedID], nd2.alignedTo[alignedID].agreements)
+                    self.graph1.align_nodes(self.alias[nodeID], self.alias[alignedID])
                 
         
         for n1ID, n2ID in self.aligned:
             # don't align to self
             if n1ID != self.alias[n2ID]:
-                self.graph1.align_nodes(n1ID, self.alias[n2ID], 1)
+                self.graph1.align_nodes(n1ID, self.alias[n2ID])
     

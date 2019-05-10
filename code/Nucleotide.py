@@ -21,12 +21,14 @@ parser.add_argument('--gephi', type=argparse.FileType('w'), help='gephi output')
 args = parser.parse_args()
 
 n = args.nseqs
+raw_seqs = []
 seqs = []
 while len(seqs) <= n or n == -1:
     name, seq = args.infile.readline(), args.infile.readline()
     if not name or not seq:
         break
-    seqs.append(Graph(seq[:-1], name[1:]))
+    raw_seqs.append({'seq': seq[:-1], 'name': name[1:-1]})
+    seqs.append(Graph(seq=seq[:-1], name=name[1:-1]))
 
 if n == -1:
     n = len(seqs)
@@ -36,17 +38,26 @@ for i in range(1, n):
         print 'aligning', 0, i
     align = Aligner(seqs[0], seqs[i])
     align.align()
-    
-# n = int(ceil(log(n_seqs,2)))
-# for i in range(1,n+1):
-#     for j in range(0, 1<<n, 1<<i):
-#         if j+(1<<(i-1)) >= n_seqs:
+
+
+if args.verbosity >= 5:
+    print seqs[0]
+
+# lg = int(ceil(log(n,2)))
+# for i in range(1,lg+1):
+#     for j in range(0, 1<<lg, 1<<i):
+#         if j+(1<<(i-1)) >= n:
 #             break
         
 #         print 'aligning',j,j+(1<<(i-1))
         
 #         align = Aligner(seqs[j], seqs[ j+(1<<(i-1)) ])
 #         align.align()
+
+trace = sorted(seqs[0].trace_seqs(), key=lambda v:v[0])
+max_name_len = max(len(name) for name, align_str in trace)
+for name, align_str in trace:
+    print name + ' '*(max_name_len-len(name)) + '   ' + align_str
 
 if args.html:
     doc = '''
