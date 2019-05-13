@@ -417,19 +417,33 @@ class Graph(object):
         return self.getRegex(threshold, verbose)
     
     def trace_seqs(self):
-        output = []
-        length = 0
+        parent = list(range(self.nnodes))
+        
+        def find(x):
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+        
+        def onion(x, y):
+            parent[find(x)] = find(y)
         
         topo = self.topological_order()
-        pos = {nid:i for i,nid in enumerate(topo)}
+        for nid in topo:
+            for nbr in self.nodedict[nid].alignedTo:
+                onion(nid, nbr)
         
+        roots = sorted([x for x in range(self.nnodes) if parent[x] == x])
+        pos = {nid:i for i,nid in enumerate(roots)}
+        
+        output = []
         for label in self.seqs:
             cur = topo[0]
-            s = ['-'] * self.nnodes
+            s = ['-'] * len(roots)
             while cur != None:
                 node = self.nodedict[cur]
                 
-                s[pos[node.ID]] = node.base
+                s[pos[find(node.ID)]] = node.base
                 cur = node.nextNode(label)
             output.append([label, ''.join(s)])
         
